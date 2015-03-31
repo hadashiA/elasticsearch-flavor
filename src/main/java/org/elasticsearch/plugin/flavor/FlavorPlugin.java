@@ -7,7 +7,7 @@ import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.rest.RestModule;
 import org.elasticsearch.plugins.AbstractPlugin;
 
-import org.elasticsearch.rest.action.FlavorRestAction;
+import org.elasticsearch.plugin.flavor.FlavorRestAction;
 
 public class FlavorPlugin extends AbstractPlugin {
     @Override
