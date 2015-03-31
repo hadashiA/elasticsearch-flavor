@@ -11,7 +11,7 @@ class FlavorRequest extends SingleShardOperationRequest<FlavorRequest> {
         super(index);
         this.type = type;
         this.id   = id;
-        this.preferenceType = 'preference';
+        this.preferenceType = "preference";
     }
 
     public String type() {
