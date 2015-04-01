@@ -24,10 +24,15 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.elasticsearch.plugin.flavor.FlavorRequest;
-import org.elasticsearch.plugin.flavor.ItemSimilarity;
+import org.elasticsearch.plugin.flavor.ItemSimilarityProvider;
 
 public class FlavorRestAction extends BaseRestHandler {
+    Logger logger = LoggerFactory.getLogger(FlavorRestAction.class);
+
     @Inject
     public FlavorRestAction(final Settings settings,
                             final RestController controller,
@@ -46,29 +51,30 @@ public class FlavorRestAction extends BaseRestHandler {
                                                    request.param("id"));
         final String operation = request.param("operation");
         if (operation.equals("similar_items")) {
-            final ItemSimilarity temSimilarity = new ItemSimilarity(client, resource);
-            client.prepareSearch(resource.index()).setTypes(resource.type())
-                .setQuery(QueryBuilders.idsQuery(resource.id()))
-                .execute(new ActionListener<SearchResponse>() {
-                        @Override
-                        public void onResponse(SearchResponse response) {
-                            try {
-                                final XContentBuilder builder = JsonXContent.contentBuilder();
-                                builder.startObject();
-                                response.toXContent(builder, ToXContent.EMPTY_PARAMS);
-                                builder.endObject();
-                                channel.sendResponse(new BytesRestResponse(OK, builder));
-                            } catch (final IOException e) {
-                                handleErrorRequest(channel, e);
-                            }
-                        }
+            final ItemSimilarityProvider provider = new ItemSimilarityProvider(client, resource);
+            final long startTime = System.currentTimeMillis();
+            final String[] similarIds = provider.similarIds();
 
-                        @Override
-                        public void onFailure(Throwable e) {
-                            handleErrorRequest(channel, e);
-                        }
-                    });
-
+            try{
+                final XContentBuilder builder = JsonXContent.contentBuilder();
+                builder.startObject()
+                    .field("took", System.currentTimeMillis() - startTime)
+                    .startObject("hits")
+                    .field("total", similarIds.length)
+                    .startArray("hits");
+                for (String id: similarIds) {
+                    builder.startObject()
+                        .field("_index", resource.index())
+                        .field("_type", resource.type())
+                        .field("_id", resource.id())
+                        .endObject();
+                }
+                builder.endArray()
+                    .endObject();
+                channel.sendResponse(new BytesRestResponse(OK, builder));
+            } catch (final IOException e) {
+                handleErrorRequest(channel, e);
+            }
         } else {
             try {
                 // 404

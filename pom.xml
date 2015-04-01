@@ -12,10 +12,6 @@
 		<developerConnection>scm:git:git@github.com:codelibs/elasticsearch-taste.git</developerConnection>
 		<url>git@github.com:codelibs/elasticsearch-flavor.git</url>
 	</scm>
-	<properties>
-		<elasticsearch.version>1.4.0</elasticsearch.version>
-		<mahout.version>0.9</mahout.version>
-	</properties>
 	<build>
 		<plugins>
 			<plugin>
@@ -46,29 +42,19 @@
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.11</version>
-				<configuration>
-					<includes>
-						<include>**/*Test.java</include>
-					</includes>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 	<dependencies>
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>1.4.0</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.mahout</groupId>
 			<artifactId>mahout-math</artifactId>
-			<version>${mahout.version}</version>
+			<version>0.9</version>
 		</dependency>
         <dependency>
             <groupId>org.codelibs</groupId>
@@ -76,6 +62,22 @@
             <version>1.4.1.0</version>
             <scope>test</scope>
         </dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.7.12</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>1.7.12</version>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.17</version>
+			<scope>test</scope>
+		</dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
