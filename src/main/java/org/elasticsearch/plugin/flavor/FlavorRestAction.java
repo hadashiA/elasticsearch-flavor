@@ -6,6 +6,7 @@ import java.util.Map;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -32,7 +33,7 @@ public class FlavorRestAction extends BaseRestHandler {
                             final RestController controller,
                             final Client client) {
         super(settings, controller, client);
-        controller.registerHandler(GET, "/{index}/_flavor/{type}/{operation}/{id}", this);
+        controller.registerHandler(GET, "/{index}/_flavor/{operation}/{type}/{id}", this);
     }
 
     @Override
@@ -51,43 +52,15 @@ public class FlavorRestAction extends BaseRestHandler {
                 .execute(new ActionListener<SearchResponse>() {
                         @Override
                         public void onResponse(SearchResponse response) {
-                            final XContentBuilder builder = JsonXContent.contentBuilder();
-                            final SearchHits hits = response.getHits();
-
-                            final String pretty = request.param("pretty");
-                            if (pretty != null && !"false".equalsIgnoreCase(pretty)) {
-                                builder.prettyPrint().lfAtEnd();
+                            try {
+                                final XContentBuilder builder = JsonXContent.contentBuilder();
+                                builder.startObject();
+                                response.toXContent(builder, ToXContent.EMPTY_PARAMS);
+                                builder.endObject();
+                                channel.sendResponse(new BytesRestResponse(OK, builder));
+                            } catch (final IOException e) {
+                                handleErrorRequest(channel, e);
                             }
-
-                            builder.startObject()//
-                                .field("took", response.getTookInMillis())//
-                                .field("timed_out", response.isTimedOut())//
-                                .startObject("_shards")//
-                                .field("total", response.getTotalShards())//
-                                .field("successful", response.getSuccessfulShards())//
-                                .field("failed", response.getFailedShards())//
-                                .endObject()//
-                                .startObject("hits")//
-                                .field("total", hits.getTotalHits())//
-                                .field("max_score", hits.getMaxScore())//
-                                .startArray("hits");
-
-                            for (final SearchHit hit : hits.getHits()) {
-                                final Map<String, Object> source =
-                                    expandObjects(client, hit.getSource(), info);
-                                builder.startObject()//
-                                    .field("_index", hit.getIndex())//
-                                    .field("_type", hit.getType())//
-                                    .field("_id", hit.getId())//
-                                    .field("_score", hit.getScore())//
-                                    .field("_source", source)//
-                                    .endObject();//
-                            }
-
-                            builder.endArray()//
-                                .endObject()//
-                                .endObject();
-                            channel.sendResponse(new BytesRestResponse(OK, builder));
                         }
 
                         @Override
@@ -113,7 +86,7 @@ public class FlavorRestAction extends BaseRestHandler {
 
     private void handleErrorRequest(final RestChannel channel, final Throwable e) {
         try {
-            // エラーレスポンスを返却する
+            // 繧ｨ繝ｩ繝ｼ繝ｬ繧ｹ繝昴Φ繧ｹ繧定ｿ泌唆縺吶ｋ
             channel.sendResponse(new BytesRestResponse(channel, e));
         } catch (final IOException e1) {
             logger.error("Failed to send a failure response.", e1);
