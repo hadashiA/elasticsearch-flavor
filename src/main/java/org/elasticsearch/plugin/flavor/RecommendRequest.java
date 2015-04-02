@@ -10,6 +10,7 @@ public class RecommendRequest extends SingleShardOperationRequest<RecommendReque
 
     public RecommendRequest(Client client, String index, String preferenceType, String id) {
         super(index);
+        this.client = client;
         this.id = id;
         this.preferenceType = "preference";
     }

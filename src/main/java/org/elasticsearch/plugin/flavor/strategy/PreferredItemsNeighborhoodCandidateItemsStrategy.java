@@ -32,7 +32,9 @@ public class PreferredItemsNeighborhoodCandidateItemsStrategy implements Candida
             .setTypes(request.preferenceType())
             .setQuery(QueryBuilders.termQuery("item_id", targetItemId))
             .addFields("user_id", "item_id", "value")
-            .setSize(maxPreferenceSize).execute().actionGet();
+            .setSize(maxPreferenceSize)
+            .execute()
+            .actionGet();
 
         final SearchHits hits = response.getHits();
         long numPreferences = hits.getTotalHits();

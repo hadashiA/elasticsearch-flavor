@@ -8,6 +8,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestController;
@@ -20,15 +22,12 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.elasticsearch.plugin.flavor.RecommendRequest;
 import org.elasticsearch.plugin.flavor.Recommender;
 import org.elasticsearch.plugin.flavor.SimilarItemsRecommender;
 
 public class FlavorRestAction extends BaseRestHandler {
-    Logger logger = LoggerFactory.getLogger(FlavorRestAction.class);
+    private  ESLogger logger = Loggers.getLogger(FlavorRestAction.class);
 
     @Inject
     public FlavorRestAction(final Settings settings,
