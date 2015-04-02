@@ -1,21 +1,21 @@
 package org.elasticsearch.plugin.flavor;
 
+import org.elasticsearch.client.Client;
 import org.elasticsearch.action.support.single.shard.SingleShardOperationRequest;
 
-class FlavorRequest extends SingleShardOperationRequest<FlavorRequest> {
-    private String type;
+public class RecommendRequest extends SingleShardOperationRequest<RecommendRequest> {
+    private Client client;
     private String id;
     private String preferenceType;
 
-    public FlavorRequest(String index, String type, String id) {
+    public RecommendRequest(Client client, String index, String preferenceType, String id) {
         super(index);
-        this.type = type;
-        this.id   = id;
+        this.id = id;
         this.preferenceType = "preference";
     }
 
-    public String type() {
-        return type;
+    public Client client() {
+        return client;
     }
 
     public String preferenceType() {
