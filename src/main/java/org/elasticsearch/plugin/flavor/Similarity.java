@@ -19,9 +19,9 @@ public class Similarity implements Comparable<Similarity> {
 
     @Override
     public int compareTo(Similarity other) {
-        if (value() > other.value()) {
+        if (value() < other.value()) {
             return 1;
-        } else if (value() < other.value()) {
+        } else if (value() > other.value()) {
             return -1;
         } else {
             return 0;
