@@ -1,7 +1,6 @@
 package org.elasticsearch.plugin.flavor;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -24,7 +23,7 @@ import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
 import org.elasticsearch.plugin.flavor.RecommendRequest;
 import org.elasticsearch.plugin.flavor.Recommender;
-import org.elasticsearch.plugin.flavor.SimilarItemsRecommender;
+import org.elasticsearch.plugin.flavor.RecommendedItem;
 
 public class FlavorRestAction extends BaseRestHandler {
     private  ESLogger logger = Loggers.getLogger(FlavorRestAction.class);
@@ -43,30 +42,23 @@ public class FlavorRestAction extends BaseRestHandler {
                               final RestChannel channel,
                               final Client client) {
         
-        String preferenceType;
-        if (request.hasParam("type")) {
-            preferenceType = request.param("type");
-        } else {
-            preferenceType = "preference";
-        }
         RecommendRequest recommendRequest =
             new RecommendRequest(client,
                                  request.param("index"),
-                                 preferenceType,
-                                 request.param("id"));
+                                 request.param("id"),
+                                 request.param("operation"));
+        if (request.hasParam("type")) {
+            recommendRequest.preferenceType(request.param("type"));
+        }
 
-        Recommender recommender;
-
-        final String operation = request.param("operation");
-        if (operation.equals("similar_items")) {
-            recommender = new SimilarItemsRecommender(recommendRequest);
-        } else {
+        final Recommender recommender = recommendRequest.createRecommender();
+        if (recommender == null) {
             try {
                 // 404
                 XContentBuilder builder = JsonXContent.contentBuilder();
                 builder
                     .startObject()
-                    .field("error", "Invalid _flavor operation: " + operation)
+                    .field("error", "Invalid _flavor operation: " + recommendRequest.operation())
                     .field("status", 404)
                     .endObject();
                 channel.sendResponse(new BytesRestResponse(NOT_FOUND, builder));
@@ -77,22 +69,20 @@ public class FlavorRestAction extends BaseRestHandler {
         }
 
         final long startTime = System.currentTimeMillis();
-        final String[] ids = recommender.recommend();
+        final RecommendedItem[] recommendedItems = recommender.recommend();
         try{
             final XContentBuilder builder = JsonXContent.contentBuilder();
             builder
                 .startObject()
                 .field("took", System.currentTimeMillis() - startTime)
                 .startObject("hits")
-                .field("total", ids.length)
+                .field("total", recommendedItems.length)
                 .startArray("hits");
-            for (String id: ids) {
+            for (final RecommendedItem recommendedItem : recommendedItems) {
                 builder
                     .startObject()
-                    .field("_index", recommendRequest.index())
-                    .field("_operation", operation)
-                    .field("_id", id)
-                    .field("_score", 1)
+                    .field(recommendedItem.idLabel(), recommendedItem.id())
+                    .field(recommendedItem.scoreLabel(), recommendedItem.score())
                     .endObject();
             }
             builder

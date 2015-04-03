@@ -1,18 +1,22 @@
 package org.elasticsearch.plugin.flavor;
 
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Iterator;
 
-import org.elasticsearch.client.Client;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 
 import org.elasticsearch.plugin.flavor.Recommender;
 import org.elasticsearch.plugin.flavor.RecommendRequest;
+import org.elasticsearch.plugin.flavor.RecommendedItem;
 import org.elasticsearch.plugin.flavor.strategy.CandidateItemsStrategy;
 import org.elasticsearch.plugin.flavor.strategy.PreferredItemsNeighborhoodCandidateItemsStrategy;
 import org.elasticsearch.plugin.flavor.strategy.ItemSimilarityStrategy;
 import org.elasticsearch.plugin.flavor.strategy.LogLikelihoodItemSimilarityStrategy;
 
 public class SimilarItemsRecommender implements Recommender {
+    private  ESLogger logger = Loggers.getLogger(SimilarItemsRecommender.class);
     private RecommendRequest request;
     private CandidateItemsStrategy candidateItemsStrategy;
     private ItemSimilarityStrategy itemSimilarityStrategy;
@@ -23,9 +27,15 @@ public class SimilarItemsRecommender implements Recommender {
         this.itemSimilarityStrategy = new LogLikelihoodItemSimilarityStrategy(request);
     }
 
-    public String[] recommend() {
-        final HashSet<String> candidateItemIds = candidateItemsStrategy.candidateItemIds(request.id());
-        
-        return candidateItemIds.toArray(new String[candidateItemIds.size()]);
+    public RecommendedItem[] recommend() {
+        final String targetItemId = request.id();
+        final HashSet<String> candidateItemIds =
+            candidateItemsStrategy.candidateItemIds(targetItemId);
+        final HashMap<String, Double> similarities =
+            itemSimilarityStrategy.similarities(targetItemId, candidateItemIds);
+
+        logger.info("similarities {}", similarities);
+        RecommendedItem[] recommendedItems = new RecommendedItem[similarities.size()];
+        return recommendedItems;
     }
 }

@@ -20,7 +20,6 @@ import org.elasticsearch.plugin.flavor.strategy.CandidateItemsStrategy;
 public class PreferredItemsNeighborhoodCandidateItemsStrategy implements CandidateItemsStrategy {
     private  ESLogger logger = Loggers.getLogger(PreferredItemsNeighborhoodCandidateItemsStrategy.class);
     private RecommendRequest request;
-    private int maxPreferenceSize = 10000;
 
     public PreferredItemsNeighborhoodCandidateItemsStrategy(RecommendRequest request) {
         this.request = request;
@@ -28,6 +27,7 @@ public class PreferredItemsNeighborhoodCandidateItemsStrategy implements Candida
 
     @Override
     public HashSet<String> candidateItemIds(String targetItemId) {
+        int maxPreferenceSize = request.maxPreferenceSize();
         SearchResponse userIdResponse = request.client()
             .prepareSearch(request.index())
             .setTypes(request.preferenceType())
@@ -52,18 +52,16 @@ public class PreferredItemsNeighborhoodCandidateItemsStrategy implements Candida
         }
 
         final HashSet<String> candidateIds = new HashSet<String>();
-        final long keepAlive = 10000; // 10sec.
-        final int size = 1000;
         final TermsFilterBuilder termsFilter = new TermsFilterBuilder("user_id", userIds);
         SearchResponse scroll = request.client()
             .prepareSearch(request.index())
             .setTypes(request.preferenceType())
             .setSearchType(SearchType.SCAN)
-            .setScroll(new TimeValue(keepAlive))
+            .setScroll(new TimeValue(request.keepAlive()))
             .setPostFilter(termsFilter)
             .addField("item_id")
             .addSort("created_at", SortOrder.DESC)
-            .setSize(size)
+            .setSize(request.scrollSize())
             .execute()
             .actionGet();
         while (true) {
@@ -74,14 +72,13 @@ public class PreferredItemsNeighborhoodCandidateItemsStrategy implements Candida
             //Break condition: No hits are returned
             scroll = request.client()
                 .prepareSearchScroll(scroll.getScrollId())
-                .setScroll(new TimeValue(keepAlive))
+                .setScroll(new TimeValue(request.keepAlive()))
                 .execute()
                 .actionGet();
             if (scroll.getHits().getHits().length == 0) {
                 break;
             }
         }
-        logger.info("candidateIds: {}", candidateIds);
         return candidateIds;
     }
 }
