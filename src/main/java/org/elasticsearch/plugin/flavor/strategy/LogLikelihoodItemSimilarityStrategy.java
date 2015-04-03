@@ -2,7 +2,6 @@ package org.elasticsearch.plugin.flavor.strategy;
 
 import java.util.HashSet;
 import java.util.HashMap;
-import java.util.Map;
 
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.logging.ESLogger;
@@ -19,6 +18,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.apache.mahout.math.stats.LogLikelihood;
 
 import org.elasticsearch.plugin.flavor.RecommendRequest;
+import org.elasticsearch.plugin.flavor.Similarity;
 import org.elasticsearch.plugin.flavor.strategy.ItemSimilarityStrategy;
 
 public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrategy {
@@ -29,8 +29,8 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
         this.request = request;
     }
 
-    public HashMap<String, Double> similarities(final String targetId, final HashSet<String> itemIds) {
-        final HashMap<String, Double> similarities = new HashMap<String, Double>();
+    public Similarity[] similarities(final String targetId, final HashSet<String> itemIds) {
+        final Similarity[] similarities = new Similarity[itemIds.size()];
 
         final HashSet<String> allItemIds = new HashSet<String>(itemIds);
         allItemIds.add(targetId);
@@ -40,16 +40,16 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
 
         HashSet<String> userIds1 = preferredUserIdsByItemId.get(targetId);
         if (userIds1 == null) {
-            return new HashMap<String, Double>();
+            return new Similarity[0];
         }
         for (final String itemId : itemIds) {
             final HashSet<String> userIds2 = preferredUserIdsByItemId.get(itemId);
             if (userIds2 == null) {
-                similarities.put(itemId, 0.0);
+                similarities[similarities.length] = new Similarity(itemId, 0.0);
             } else {
                 long preferring1 = userIds1.size();
                 long preferring2 = userIds2.size();
-                // TODO: 
+
                 HashSet<String> userIds1and2 = new HashSet<String>(userIds1);
                 userIds1and2.retainAll(userIds2);
                 long preferring1and2 = userIds1and2.size();
@@ -70,7 +70,7 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
                                                      numPreferences - preferring1 - preferring2 + preferring1and2
                                                      );
                 final double similarity =  1.0 - 1.0 / (1.0 + logLikelihood);
-                similarities.put(itemId, similarity);
+                similarities[similarities.length] = new Similarity(itemId, similarity);
             }
         }
         return similarities;

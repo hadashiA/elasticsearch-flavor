@@ -1,9 +1,9 @@
 package org.elasticsearch.plugin.flavor.strategy;
 
-import java.util.HashMap;
 import java.util.HashSet;
 
+import org.elasticsearch.plugin.flavor.Similarity;
+
 public interface ItemSimilarityStrategy {
-    HashMap<String, Double> similarities(final String targetId,
-                                         final HashSet<String> itemIds);
+    Similarity[] similarities(final String targetId, final HashSet<String> itemIds);
 }
