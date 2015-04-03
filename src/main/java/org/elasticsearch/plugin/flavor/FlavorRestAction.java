@@ -35,6 +35,7 @@ public class FlavorRestAction extends BaseRestHandler {
                             final Client client) {
         super(settings, controller, client);
         controller.registerHandler(GET, "/{index}/_flavor/{operation}/{id}", this);
+        controller.registerHandler(GET, "/{index}/{type}/_flavor/{operation}/{id}", this);
     }
 
     @Override
@@ -42,10 +43,16 @@ public class FlavorRestAction extends BaseRestHandler {
                               final RestChannel channel,
                               final Client client) {
         
+        String preferenceType;
+        if (request.hasParam("type")) {
+            preferenceType = request.param("type");
+        } else {
+            preferenceType = "preference";
+        }
         RecommendRequest recommendRequest =
             new RecommendRequest(client,
                                  request.param("index"),
-                                 "preference",
+                                 preferenceType,
                                  request.param("id"));
 
         Recommender recommender;
@@ -84,7 +91,7 @@ public class FlavorRestAction extends BaseRestHandler {
                     .startObject()
                     .field("_index", recommendRequest.index())
                     .field("_operation", operation)
-                    .field("_id", recommendRequest.id())
+                    .field("_id", id)
                     .field("_score", 1)
                     .endObject();
             }

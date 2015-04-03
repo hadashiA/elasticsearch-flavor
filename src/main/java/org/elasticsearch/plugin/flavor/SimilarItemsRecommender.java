@@ -25,6 +25,7 @@ public class SimilarItemsRecommender implements Recommender {
 
     public String[] recommend() {
         final HashSet<String> candidateItemIds = candidateItemsStrategy.candidateItemIds(request.id());
+        
         return candidateItemIds.toArray(new String[candidateItemIds.size()]);
     }
 }
