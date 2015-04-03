@@ -36,22 +36,23 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
         allItemIds.add(targetId);
 
         final long numPreferences = countAllPreference();
-        final HashMap<String, Integer> numPreferredUsersByItemId = countPreferredUsersByItemIds(allItemIds);
-        logger.info("numPreferredUsersByItemId {}", numPreferredUsersByItemId);
+        final HashMap<String, HashSet<String>> preferredUserIdsByItemId = findPreferredUserIdsByItemIds(allItemIds);
 
-        Integer numPreferredUsers1 = numPreferredUsersByItemId.get(targetId);
-        if (numPreferredUsers1 == null) {
-            numPreferredUsers1 = 0;
+        HashSet<String> userIds1 = preferredUserIdsByItemId.get(targetId);
+        if (userIds1 == null) {
+            return new HashMap<String, Double>();
         }
         for (final String itemId : itemIds) {
-            Integer numPreferredUsers2 = numPreferredUsersByItemId.get(itemId);
-            if (numPreferredUsers2 == null) {
+            final HashSet<String> userIds2 = preferredUserIdsByItemId.get(itemId);
+            if (userIds2 == null) {
                 similarities.put(itemId, 0.0);
             } else {
-                long preferring1 = numPreferredUsers1.longValue();
-                long preferring2 = numPreferredUsers2.longValue();
-                // この値の出しかたが違う
-                long preferring1and2 = preferring1 + preferring2;
+                long preferring1 = userIds1.size();
+                long preferring2 = userIds2.size();
+                // TODO: 
+                HashSet<String> userIds1and2 = new HashSet<String>(userIds1);
+                userIds1and2.retainAll(userIds2);
+                long preferring1and2 = userIds1and2.size();
 
                 // Parameters:
                 //     k11 The number of times the two events occurred together
@@ -64,13 +65,11 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
                 //     Credit to http://tdunning.blogspot.com/2008/03/surprise-and-coincidence.html for the table and the descriptions.
                 final double logLikelihood =
                     LogLikelihood.logLikelihoodRatio(preferring1and2,
-                                                     preferring1,
-                                                     preferring2,
-                                                     numPreferences
+                                                     preferring2 - preferring1and2,
+                                                     preferring1 - preferring1and2,
+                                                     numPreferences - preferring1 - preferring2 + preferring1and2
                                                      );
-                logger.info("logLikelihood {}", logLikelihood);
                 final double similarity =  1.0 - 1.0 / (1.0 + logLikelihood);
-                logger.info("similarity {}", similarity);
                 similarities.put(itemId, similarity);
             }
         }
@@ -88,7 +87,7 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
         return response.getHits().getTotalHits();
     }
 
-    private HashMap<String, Integer> countPreferredUsersByItemIds(final HashSet<String> itemIds) {
+    private HashMap<String, HashSet<String>> findPreferredUserIdsByItemIds(final HashSet<String> itemIds) {
         final HashMap<String, HashSet<String>> userIdsByItemId = new HashMap<String, HashSet<String>>();
         final TermsFilterBuilder termsFilter = new TermsFilterBuilder("item_id", itemIds);
         SearchResponse scroll = request.client()
@@ -124,11 +123,6 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
                 break;
             }
         }
-        HashMap<String, Integer> preferrings = new HashMap<String, Integer>();
-
-        for (Map.Entry<String, HashSet<String>> entry : userIdsByItemId.entrySet()) {
-            preferrings.put(entry.getKey(), entry.getValue().size());
-        }
-        return preferrings;
+        return userIdsByItemId;
     }
 }
