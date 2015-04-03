@@ -53,10 +53,6 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
                 // この値の出しかたが違う
                 long preferring1and2 = preferring1 + preferring2;
 
-                logger.info("preferring1and2: {}", preferring1and2);
-                logger.info("preferring2 - preferring1and2: {}", preferring2 - preferring1and2);
-                logger.info("preferring1 - preferring1and2: {}", preferring1 - preferring1and2);
-                logger.info("numPreferences - preferring1 - preferring2 + preferring1and2: {}", numPreferences - preferring1 - preferring2 + preferring1and2);
                 // Parameters:
                 //     k11 The number of times the two events occurred together
                 //     k12 The number of times the second event occurred WITHOUT the first event
@@ -68,9 +64,9 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
                 //     Credit to http://tdunning.blogspot.com/2008/03/surprise-and-coincidence.html for the table and the descriptions.
                 final double logLikelihood =
                     LogLikelihood.logLikelihoodRatio(preferring1and2,
-                                                     preferring2 - preferring1and2,
-                                                     preferring1 - preferring1and2,
-                                                     numPreferences - preferring1 - preferring2 + preferring1and2
+                                                     preferring1,
+                                                     preferring2,
+                                                     numPreferences
                                                      );
                 logger.info("logLikelihood {}", logLikelihood);
                 final double similarity =  1.0 - 1.0 / (1.0 + logLikelihood);
