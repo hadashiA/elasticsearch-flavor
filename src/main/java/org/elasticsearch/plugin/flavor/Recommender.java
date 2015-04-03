@@ -1,7 +1,9 @@
 package org.elasticsearch.plugin.flavor;
 
+import java.util.ArrayList;
+
 import org.elasticsearch.plugin.flavor.RecommendedItem;
 
 public interface Recommender {
-    RecommendedItem[] recommend();
+    ArrayList<RecommendedItem> recommend();
 }

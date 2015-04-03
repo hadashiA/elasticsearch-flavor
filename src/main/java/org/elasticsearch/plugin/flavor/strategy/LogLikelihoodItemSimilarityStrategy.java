@@ -2,6 +2,7 @@ package org.elasticsearch.plugin.flavor.strategy;
 
 import java.util.HashSet;
 import java.util.HashMap;
+import java.util.ArrayList;
 
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.logging.ESLogger;
@@ -29,8 +30,8 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
         this.request = request;
     }
 
-    public Similarity[] similarities(final String targetId, final HashSet<String> itemIds) {
-        final Similarity[] similarities = new Similarity[itemIds.size()];
+    public ArrayList<Similarity> similarities(final String targetId, final HashSet<String> itemIds) {
+        final ArrayList<Similarity> similarities = new ArrayList<Similarity>(itemIds.size());
 
         final HashSet<String> allItemIds = new HashSet<String>(itemIds);
         allItemIds.add(targetId);
@@ -40,12 +41,13 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
 
         HashSet<String> userIds1 = preferredUserIdsByItemId.get(targetId);
         if (userIds1 == null) {
-            return new Similarity[0];
+            return similarities;
         }
+        int i = 0;
         for (final String itemId : itemIds) {
             final HashSet<String> userIds2 = preferredUserIdsByItemId.get(itemId);
             if (userIds2 == null) {
-                similarities[similarities.length] = new Similarity(itemId, 0.0);
+                similarities.add(new Similarity(itemId, 0.0));
             } else {
                 long preferring1 = userIds1.size();
                 long preferring2 = userIds2.size();
@@ -70,7 +72,7 @@ public class LogLikelihoodItemSimilarityStrategy implements ItemSimilarityStrate
                                                      numPreferences - preferring1 - preferring2 + preferring1and2
                                                      );
                 final double similarity =  1.0 - 1.0 / (1.0 + logLikelihood);
-                similarities[similarities.length] = new Similarity(itemId, similarity);
+                similarities.add(new Similarity(itemId, similarity));
             }
         }
         return similarities;

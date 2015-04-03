@@ -1,9 +1,8 @@
 package org.elasticsearch.plugin.flavor;
 
 import java.util.HashSet;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
@@ -29,20 +28,25 @@ public class SimilarItemsRecommender implements Recommender {
         this.itemSimilarityStrategy = new LogLikelihoodItemSimilarityStrategy(request);
     }
 
-    public RecommendedItem[] recommend() {
+    public ArrayList<RecommendedItem> recommend() {
         final String targetItemId = request.id();
         final HashSet<String> candidateItemIds =
             candidateItemsStrategy.candidateItemIds(targetItemId);
-        final Similarity[] similarities =
+        final ArrayList<Similarity> similarities =
             itemSimilarityStrategy.similarities(targetItemId, candidateItemIds);
 
-        Arrays.sort(similarities);
+        Collections.sort(similarities);
 
-        RecommendedItem[] recommendedItems = new RecommendedItem[similarities.length];
-        for (int i = 0; i < request.recommendSize(); i++) {
-            Similarity similarity = similarities[i];
-            RecommendedItem recommendedItem = new RecommendedItem("similarity", similarity.value(), "item_id", similarity.id());
-            recommendedItems[i] = recommendedItem;
+        ArrayList<RecommendedItem> recommendedItems =
+            new ArrayList<RecommendedItem>(request.recommendSize());
+        for (int i = 0; i < request.recommendSize() && i < similarities.size(); i++) {
+            Similarity similarity = similarities.get(i);
+
+            RecommendedItem recommendedItem = new RecommendedItem("similarity",
+                                                                  similarity.value(),
+                                                                  "item_id",
+                                                                  similarity.id());
+            recommendedItems.add(recommendedItem);
         }
         return recommendedItems;
     }

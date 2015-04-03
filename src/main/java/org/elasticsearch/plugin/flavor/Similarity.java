@@ -4,7 +4,7 @@ public class Similarity implements Comparable<Similarity> {
     private String id;
     private double value;
 
-    public Similarity(String id, double similarity) {
+    public Similarity(String id, double value) {
         this.id = id;
         this.value = value;
     }

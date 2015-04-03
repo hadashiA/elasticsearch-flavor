@@ -1,6 +1,7 @@
 package org.elasticsearch.plugin.flavor;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -69,14 +70,14 @@ public class FlavorRestAction extends BaseRestHandler {
         }
 
         final long startTime = System.currentTimeMillis();
-        final RecommendedItem[] recommendedItems = recommender.recommend();
+        final ArrayList<RecommendedItem> recommendedItems = recommender.recommend();
         try{
             final XContentBuilder builder = JsonXContent.contentBuilder();
             builder
                 .startObject()
                 .field("took", System.currentTimeMillis() - startTime)
                 .startObject("hits")
-                .field("total", recommendedItems.length)
+                .field("total", recommendedItems.size())
                 .startArray("hits");
             for (final RecommendedItem recommendedItem : recommendedItems) {
                 builder

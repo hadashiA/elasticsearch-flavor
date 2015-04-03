@@ -15,7 +15,7 @@ public class RecommendedItem {
     }
 
     public String scoreLabel() {
-        return scoreLabel();
+        return scoreLabel;
     }
 
     public double score() {
