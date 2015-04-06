@@ -2,10 +2,13 @@ package org.elasticsearch.plugin.flavor;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.common.logging.ESLogger;
@@ -19,6 +22,7 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.action.ActionListener;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
@@ -27,9 +31,10 @@ import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
 
-import org.elasticsearch.plugin.flavor.RecommendRequest;
-import org.elasticsearch.plugin.flavor.Recommender;
-import org.elasticsearch.plugin.flavor.RecommendedItem;
+import com.google.gson.JsonObject;
+import com.google.gson.Gson;
+
+import org.elasticsearch.plugin.flavor.DataModelBuilder;
 
 public class FlavorRestAction extends BaseRestHandler {
     private DataModel dataModel = new GenericDataModel(new FastByIDMap<PreferenceArray>());
@@ -40,8 +45,8 @@ public class FlavorRestAction extends BaseRestHandler {
                             final RestController controller,
                             final Client client) {
         super(settings, controller, client);
-        controller.registerHandler(GET, "/{index}/_flavor/{operation}/{id}", this);
-        controller.registerHandler(GET, "/{index}/{type}/_flavor/{operation}/{id}", this);
+        controller.registerHandler(POST, "/_flavor/reload", this);
+        controller.registerHandler(GET,  "/_flavor/{operation}/{id}", this);
     }
 
     @Override
@@ -49,56 +54,54 @@ public class FlavorRestAction extends BaseRestHandler {
                               final RestChannel channel,
                               final Client client) {
         
-        RecommendRequest recommendRequest =
-            new RecommendRequest(client,
-                                 request.param("index"),
-                                 request.param("id"),
-                                 request.param("operation"));
-        if (request.hasParam("type")) {
-            recommendRequest.preferenceType(request.param("type"));
-        }
-
-        final Recommender recommender = recommendRequest.createRecommender();
-        if (recommender == null) {
+        switch (request.method()) {
+        case POST:
             try {
-                // 404
-                XContentBuilder builder = JsonXContent.contentBuilder();
+                final String jsonString = XContentHelper.convertToJson(request.content(), true);
+                JsonObject json = new Gson().fromJson(jsonString, JsonObject.class);
+
+                final DataModelBuilder dataModelBuilder = new DataModelBuilder(client, json);
+                this.dataModel = dataModelBuilder.build();
+                final XContentBuilder builder = JsonXContent.contentBuilder();
                 builder
                     .startObject()
-                    .field("error", "Invalid _flavor operation: " + recommendRequest.operation())
-                    .field("status", 404)
+                    .field("acknowledged", true)
                     .endObject();
-                channel.sendResponse(new BytesRestResponse(NOT_FOUND, builder));
-            } catch (final IOException e) {
+                channel.sendResponse(new BytesRestResponse(OK, builder));
+                
+            } catch (final Exception e) {
                 handleErrorRequest(channel, e);
             }
-            return;
+            break;
+        case GET:
+            notFound(channel);
+            break;
+        default:
+            notFound(channel);
+            break;
         }
-
-        final long startTime = System.currentTimeMillis();
-        final ArrayList<RecommendedItem> recommendedItems = recommender.recommend();
-        try{
-            final XContentBuilder builder = JsonXContent.contentBuilder();
-            builder
-                .startObject()
-                .field("took", System.currentTimeMillis() - startTime)
-                .startObject("hits")
-                .field("total", recommendedItems.size())
-                .startArray("hits");
-            for (final RecommendedItem recommendedItem : recommendedItems) {
-                builder
-                    .startObject()
-                    .field(recommendedItem.idLabel(), recommendedItem.id())
-                    .field(recommendedItem.scoreLabel(), recommendedItem.score())
-                    .endObject();
-            }
-            builder
-                .endArray()
-                .endObject();
-            channel.sendResponse(new BytesRestResponse(OK, builder));
-        } catch (final IOException e) {
-            handleErrorRequest(channel, e);
-        }
+        // try{
+        //     final XContentBuilder builder = JsonXContent.contentBuilder();
+        //     builder
+        //         .startObject()
+        //         .field("took", System.currentTimeMillis() - startTime)
+        //         .startObject("hits")
+        //         .field("total", recommendedItems.size())
+        //         .startArray("hits");
+        //     for (final RecommendedItem recommendedItem : recommendedItems) {
+        //         builder
+        //             .startObject()
+        //             .field(recommendedItem.idLabel(), recommendedItem.id())
+        //             .field(recommendedItem.scoreLabel(), recommendedItem.score())
+        //             .endObject();
+        //     }
+        //     builder
+        //         .endArray()
+        //         .endObject();
+        //     channel.sendResponse(new BytesRestResponse(OK, builder));
+        // } catch (final IOException e) {
+        //     handleErrorRequest(channel, e);
+        // }
     }
 
     private void handleErrorRequest(final RestChannel channel, final Throwable e) {
@@ -106,6 +109,21 @@ public class FlavorRestAction extends BaseRestHandler {
             channel.sendResponse(new BytesRestResponse(channel, e));
         } catch (final IOException e1) {
             logger.error("Failed to send a failure response.", e1);
+        }
+    }
+
+    private void notFound(final RestChannel channel) {
+        try {
+            // 404
+            XContentBuilder builder = JsonXContent.contentBuilder();
+            builder
+                .startObject()
+                .field("error", "Invalid operatioin")
+                .field("status", 404)
+                .endObject();
+            channel.sendResponse(new BytesRestResponse(NOT_FOUND, builder));
+        } catch (final IOException e) {
+            handleErrorRequest(channel, e);
         }
     }
 }

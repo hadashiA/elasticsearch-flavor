@@ -31,10 +31,11 @@ import org.apache.mahout.cf.taste.model.Preference;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
 
 public class ElasticsearchPreloadDataModel extends AbstractDataModel {
+    private ESLogger logger = Loggers.getLogger(ElasticsearchPreloadDataModel.class);
     private Client client;
     private String preferenceIndex;
     private String preferenceType;
-    private GenericDataModel delegate;
+    private GenericDataModel delegate = new GenericDataModel(new FastByIDMap<PreferenceArray>());
 
     private long keepAlive = 60000;
     private int scrollSize = 2000;
@@ -45,11 +46,9 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
         this.client = client;
         this.preferenceIndex = preferenceIndex;
         this.preferenceType = preferenceType;
-
-        reload();
     }
 
-    public void reload() {
+    public void reload() throws TasteException {
         FastByIDMap<PreferenceArray> users = new FastByIDMap<PreferenceArray>();
         boolean firstLine = true;
         long prevUserId = -1;
@@ -60,6 +59,7 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
             .setTypes(preferenceType)
             .setSearchType(SearchType.SCAN)
             .setScroll(new TimeValue(keepAlive))
+            .setQuery(QueryBuilders.matchAllQuery())
             .addFields("user_id", "item_id", "value")
             .addSort("user_id", SortOrder.ASC)
             .setSize(scrollSize)
@@ -68,9 +68,10 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
 
         while (true) {
             for (SearchHit hit : scroll.getHits().getHits()) {
-                final long userId = hit.field("user_id").getValue();
-                final long itemId = hit.field("item_id").getValue();
-                final float value = hit.field("value").getValue();
+                final long  userId = getLongValue(hit, "user_id");
+                final long  itemId = getLongValue(hit, "item_id");
+                final float value  = getFloatValue(hit, "value");
+                logger.info("{} {} {}", userId, itemId, value);
 
                 if (firstLine) {
                     prevUserId = userId;
@@ -101,6 +102,67 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
             users.put(prevUserId, user);
         }
         this.delegate = new GenericDataModel(users);
+    }
+
+
+    public Client client() {
+        return client;
+    }
+
+    public String preferenceIndex() {
+        return preferenceIndex;
+    }
+
+    public String preferenceType() {
+        return preferenceType;
+    }
+
+    public long keepAlive() {
+        return keepAlive;
+    }
+
+    public int scrollSize() {
+        return scrollSize;
+    }
+
+    public void preferenceIndex(final String value) {
+        this.preferenceIndex = value;
+    }
+
+    public void preferenceType(final String value) {
+        this.preferenceType = value;
+    }
+
+    public void setScrollSize(final int value) {
+        this.scrollSize = value;
+    }
+
+    public void setKeepAlive(final long value) {
+        this.keepAlive = value;
+    }
+
+    private long getLongValue(final SearchHit hit, final String field) throws TasteException {
+        final SearchHitField result = hit.field(field);
+        if (result == null) {
+            throw new TasteException(field + " is not found.");
+        }
+        final Number longValue = result.getValue();
+        if (longValue == null) {
+            throw new TasteException("The result of " + field + " is null.");
+        }
+        return longValue.longValue();
+    }
+
+    private float getFloatValue(final SearchHit hit, final String field) throws TasteException {
+        final SearchHitField result = hit.field(field);
+        if (result == null) {
+            throw new TasteException(field + " is not found.");
+        }
+        final Number floatValue = result.getValue();
+        if (floatValue == null) {
+            throw new TasteException("The result of " + field + " is null.");
+        }
+        return floatValue.floatValue();
     }
 
     // 
@@ -179,7 +241,11 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
 
     @Override
     public void refresh(Collection<Refreshable> alreadyRefreshed) {
-        reload();
+        try {
+            reload();
+        } catch(final TasteException e) {
+            logger.info("reload failed. {}", e);
+        }
     }
 
     @Override
