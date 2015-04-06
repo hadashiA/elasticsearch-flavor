@@ -29,21 +29,18 @@ import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
+import org.apache.mahout.cf.taste.eval.RecommenderBuilder;
 import org.apache.mahout.cf.taste.recommender.RecommendedItem;
+import org.apache.mahout.cf.taste.recommender.Recommender;
 import org.apache.mahout.cf.taste.recommender.ItemBasedRecommender;
-import org.apache.mahout.cf.taste.similarity.ItemSimilarity;
 import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
-import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
-import org.apache.mahout.cf.taste.impl.similarity.LogLikelihoodSimilarity;
-import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
-import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
-
 
 import com.google.gson.JsonObject;
 import com.google.gson.Gson;
 
 import org.elasticsearch.plugin.flavor.DataModelBuilder;
+import org.elasticsearch.plugin.flavor.FlavorRecommenderBuilder;
 
 public class FlavorRestAction extends BaseRestHandler {
     private DataModel dataModel = new GenericDataModel(new FastByIDMap<PreferenceArray>());
@@ -84,12 +81,23 @@ public class FlavorRestAction extends BaseRestHandler {
             break;
         case GET:
             try {
+                final String operation = request.param("operation");
                 final long id = request.paramAsLong("id", 0);
-                // ItemSimilarity algorithm = new LogLikelihoodSimilarity(dataModel);
-                ItemSimilarity algorithm = new EuclideanDistanceSimilarity(dataModel);
-                ItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, algorithm);
+                final int size = request.paramAsInt("size", 10);
+
+                final RecommenderBuilder recommenderBuilder =
+                    new FlavorRecommenderBuilder(operation, request.param("similarity"));
+                final Recommender recommender = recommenderBuilder.buildRecommender(dataModel);
+
+                logger.info("recommender: {}", recommender);
+                List<RecommendedItem> items;
                 final long startTime = System.currentTimeMillis();
-                List<RecommendedItem> items = recommender.mostSimilarItems(id, 10);
+                if (operation.equals("similar_items")) {
+                    items = ((ItemBasedRecommender)recommender).mostSimilarItems(id, size);
+                } else {
+                    items = recommender.recommend(id, size);
+                }
+                logger.info("items: {}", items.size());
 
                 final XContentBuilder builder = JsonXContent.contentBuilder();
                 builder

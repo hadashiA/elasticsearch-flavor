@@ -20,6 +20,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.apache.mahout.cf.taste.common.Refreshable;
 import org.apache.mahout.cf.taste.common.TasteException;
 import org.apache.mahout.cf.taste.impl.model.AbstractDataModel;
+import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import org.apache.mahout.cf.taste.impl.common.FastIDSet;
 import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
@@ -51,16 +52,12 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
 
     public void reload() throws TasteException {
         FastByIDMap<PreferenceArray> users = new FastByIDMap<PreferenceArray>();
-        boolean firstLine = true;
-        long prevUserId = -1;
-        ArrayList<GenericPreference> preferenceList = new ArrayList<GenericPreference>();
 
         SearchResponse scroll = client
             .prepareSearch(preferenceIndex)
             .setTypes(preferenceType)
-            // .setSearchType(SearchType.SCAN)
+            .setSearchType(SearchType.SCAN)
             .setQuery(QueryBuilders.matchAllQuery())
-            .addSort(SortBuilders.fieldSort("user_id").order(SortOrder.ASC).missing("_last"))
             .addFields("user_id", "item_id", "value")
             .setSize(scrollSize)
             .setScroll(new TimeValue(keepAlive))
@@ -73,18 +70,27 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
                 final long  itemId = getLongValue(hit, "item_id");
                 final float value  = getFloatValue(hit, "value");
 
-                if (firstLine) {
-                    prevUserId = userId;
-                    firstLine = false;
+                if (users.containsKey(userId)) {
+                    GenericUserPreferenceArray user = (GenericUserPreferenceArray)users.get(userId);
+                    GenericUserPreferenceArray newUser = new GenericUserPreferenceArray(user.length() + 1);
+                    int currentLength = user.length();
+                    for (int i = 0; i < currentLength; i++) {
+                        newUser.setUserID(i, user.getUserID(i));
+                        newUser.setItemID(i, user.getItemID(i));
+                        newUser.setValue(i, user.getValue(i));
+                    }
+                    newUser.setUserID(currentLength, userId);
+                    newUser.setItemID(currentLength, itemId);
+                    newUser.setValue(currentLength, value);
+                    users.put(userId, newUser);
+                    
+                } else {
+                    GenericUserPreferenceArray user = new GenericUserPreferenceArray(1);
+                    user.setUserID(0, userId);
+                    user.setItemID(0, itemId);
+                    user.setValue(0, value);
+                    users.put(userId, user);
                 }
-
-                if (!preferenceList.isEmpty() && prevUserId != userId) {
-                    GenericUserPreferenceArray user = new GenericUserPreferenceArray(preferenceList);
-                    users.put(prevUserId, user);
-                    preferenceList.clear();
-                }
-                prevUserId = userId;
-                preferenceList.add(new GenericPreference(userId, itemId, value));
             }
             //Break condition: No hits are returned
             scroll = client
@@ -96,14 +102,19 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
                 break;
             }
         }
-        
-        if (!preferenceList.isEmpty()) {
-            GenericUserPreferenceArray user = new GenericUserPreferenceArray(preferenceList);
-            users.put(prevUserId, user);
-        }
-        this.delegate = new GenericDataModel(users);
-    }
 
+        this.delegate = new GenericDataModel((FastByIDMap<PreferenceArray>)users);
+        LongPrimitiveIterator iter = delegate.getUserIDs();
+        while (iter.hasNext()) {
+            long userId = iter.nextLong();
+            PreferenceArray user = delegate.getPreferencesFromUser(userId);
+            logger.info("userId: {} ({})", userId, user.getIDs());
+        }
+
+        logger.info("Reload {}/{} {} users. {} items.",
+                    preferenceIndex, preferenceType,
+                    delegate.getNumUsers(), delegate.getNumItems());
+    }
 
     public Client client() {
         return client;
