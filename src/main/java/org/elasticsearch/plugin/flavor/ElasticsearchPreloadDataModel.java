@@ -104,12 +104,12 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
         }
 
         this.delegate = new GenericDataModel((FastByIDMap<PreferenceArray>)users);
-        LongPrimitiveIterator iter = delegate.getUserIDs();
-        while (iter.hasNext()) {
-            long userId = iter.nextLong();
-            PreferenceArray user = delegate.getPreferencesFromUser(userId);
-            logger.info("userId: {} ({})", userId, user.getIDs());
-        }
+        // LongPrimitiveIterator iter = delegate.getUserIDs();
+        // while (iter.hasNext()) {
+        //     long userId = iter.nextLong();
+        //     PreferenceArray user = delegate.getPreferencesFromUser(userId);
+        //     logger.info("userId: {} ({})", userId, user.getIDs());
+        // }
 
         logger.info("Reload {}/{} {} users. {} items.",
                     preferenceIndex, preferenceType,
