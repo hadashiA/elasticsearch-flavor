@@ -22,12 +22,18 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
+import org.apache.mahout.cf.taste.model.DataModel;
+import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
+import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
+import org.apache.mahout.cf.taste.model.PreferenceArray;
+
 import org.elasticsearch.plugin.flavor.RecommendRequest;
 import org.elasticsearch.plugin.flavor.Recommender;
 import org.elasticsearch.plugin.flavor.RecommendedItem;
 
 public class FlavorRestAction extends BaseRestHandler {
-    private  ESLogger logger = Loggers.getLogger(FlavorRestAction.class);
+    private DataModel dataModel = new GenericDataModel(new FastByIDMap<PreferenceArray>());
+    private ESLogger logger = Loggers.getLogger(FlavorRestAction.class);
 
     @Inject
     public FlavorRestAction(final Settings settings,

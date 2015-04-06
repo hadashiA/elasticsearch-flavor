@@ -53,7 +53,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.mahout</groupId>
-			<artifactId>mahout-math</artifactId>
+			<artifactId>mahout-core</artifactId>
 			<version>0.9</version>
 		</dependency>
         <dependency>
