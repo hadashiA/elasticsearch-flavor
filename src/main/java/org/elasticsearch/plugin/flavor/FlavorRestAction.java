@@ -3,6 +3,7 @@ package org.elasticsearch.plugin.flavor;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.List;
 
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -27,10 +28,16 @@ import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
 import org.apache.mahout.cf.taste.model.DataModel;
-import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
-import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
-import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
+import org.apache.mahout.cf.taste.recommender.RecommendedItem;
+import org.apache.mahout.cf.taste.recommender.ItemBasedRecommender;
+import org.apache.mahout.cf.taste.similarity.ItemSimilarity;
+import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
+import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
+import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
+import org.apache.mahout.cf.taste.impl.similarity.LogLikelihoodSimilarity;
+import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
+
 
 import com.google.gson.JsonObject;
 import com.google.gson.Gson;
@@ -76,16 +83,28 @@ public class FlavorRestAction extends BaseRestHandler {
             break;
         case GET:
             try {
-                LongPrimitiveIterator iter = dataModel.getUserIDs();
-                while (iter.hasNext()) {
-                    long userId = iter.nextLong();
-                    PreferenceArray user = dataModel.getPreferencesFromUser(userId);
-                    logger.info("userId: {} ({})", userId, user.getIDs());
-                }
+                final long id = request.paramAsLong("id", 0);
+                ItemSimilarity algorithm = new LogLikelihoodSimilarity(dataModel);
+                ItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, algorithm);
+                final long startTime = System.currentTimeMillis();
+                List<RecommendedItem> items = recommender.recommend(id, 10);
+
                 final XContentBuilder builder = JsonXContent.contentBuilder();
                 builder
                     .startObject()
-                    .field("acknowledged", true)
+                    .field("took", System.currentTimeMillis() - startTime)
+                    .startObject("hits")
+                    .field("total", items.size())
+                    .startArray("hits");
+                for (final RecommendedItem item : items) {
+                    builder
+                        .startObject()
+                        .field("item_id", item.getItemID())
+                        .field("value", item.getValue())
+                        .endObject();
+                }
+                builder
+                    .endArray()
                     .endObject();
                 channel.sendResponse(new BytesRestResponse(OK, builder));
                 break;
@@ -96,28 +115,6 @@ public class FlavorRestAction extends BaseRestHandler {
             notFound(channel);
             break;
         }
-        // try{
-        //     final XContentBuilder builder = JsonXContent.contentBuilder();
-        //     builder
-        //         .startObject()
-        //         .field("took", System.currentTimeMillis() - startTime)
-        //         .startObject("hits")
-        //         .field("total", recommendedItems.size())
-        //         .startArray("hits");
-        //     for (final RecommendedItem recommendedItem : recommendedItems) {
-        //         builder
-        //             .startObject()
-        //             .field(recommendedItem.idLabel(), recommendedItem.id())
-        //             .field(recommendedItem.scoreLabel(), recommendedItem.score())
-        //             .endObject();
-        //     }
-        //     builder
-        //         .endArray()
-        //         .endObject();
-        //     channel.sendResponse(new BytesRestResponse(OK, builder));
-        // } catch (final IOException e) {
-        //     handleErrorRequest(channel, e);
-        // }
     }
 
     private void handleErrorRequest(final RestChannel channel, final Throwable e) {

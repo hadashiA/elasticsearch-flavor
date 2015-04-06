@@ -72,7 +72,6 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
                 final long  userId = getLongValue(hit, "user_id");
                 final long  itemId = getLongValue(hit, "item_id");
                 final float value  = getFloatValue(hit, "value");
-                logger.info("{} {} {}", userId, itemId, value);
 
                 if (firstLine) {
                     prevUserId = userId;
