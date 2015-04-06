@@ -10,6 +10,7 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHitField;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermsFilterBuilder;
@@ -57,12 +58,12 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
         SearchResponse scroll = client
             .prepareSearch(preferenceIndex)
             .setTypes(preferenceType)
-            .setSearchType(SearchType.SCAN)
-            .setScroll(new TimeValue(keepAlive))
+            // .setSearchType(SearchType.SCAN)
             .setQuery(QueryBuilders.matchAllQuery())
+            .addSort(SortBuilders.fieldSort("user_id").order(SortOrder.ASC).missing("_last"))
             .addFields("user_id", "item_id", "value")
-            .addSort("user_id", SortOrder.ASC)
             .setSize(scrollSize)
+            .setScroll(new TimeValue(keepAlive))
             .execute()
             .actionGet();
 
