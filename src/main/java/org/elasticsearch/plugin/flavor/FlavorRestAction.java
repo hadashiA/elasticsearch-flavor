@@ -36,6 +36,7 @@ import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
 import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import org.apache.mahout.cf.taste.impl.similarity.LogLikelihoodSimilarity;
+import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
 import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
 
 
@@ -84,10 +85,11 @@ public class FlavorRestAction extends BaseRestHandler {
         case GET:
             try {
                 final long id = request.paramAsLong("id", 0);
-                ItemSimilarity algorithm = new LogLikelihoodSimilarity(dataModel);
+                // ItemSimilarity algorithm = new LogLikelihoodSimilarity(dataModel);
+                ItemSimilarity algorithm = new EuclideanDistanceSimilarity(dataModel);
                 ItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, algorithm);
                 final long startTime = System.currentTimeMillis();
-                List<RecommendedItem> items = recommender.recommend(id, 10);
+                List<RecommendedItem> items = recommender.mostSimilarItems(id, 10);
 
                 final XContentBuilder builder = JsonXContent.contentBuilder();
                 builder
