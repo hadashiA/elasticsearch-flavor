@@ -78,9 +78,9 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
                     firstLine = false;
                 }
 
-                if (prevUserId != userId) {
+                if (!preferenceList.isEmpty() && prevUserId != userId) {
                     GenericUserPreferenceArray user = new GenericUserPreferenceArray(preferenceList);
-                    users.put(userId, user);
+                    users.put(prevUserId, user);
                     preferenceList.clear();
                 }
                 prevUserId = userId;

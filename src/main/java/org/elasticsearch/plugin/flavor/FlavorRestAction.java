@@ -27,6 +27,7 @@ import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
 import org.apache.mahout.cf.taste.model.DataModel;
+import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
@@ -74,8 +75,23 @@ public class FlavorRestAction extends BaseRestHandler {
             }
             break;
         case GET:
-            notFound(channel);
-            break;
+            try {
+                LongPrimitiveIterator iter = dataModel.getUserIDs();
+                while (iter.hasNext()) {
+                    long userId = iter.nextLong();
+                    PreferenceArray user = dataModel.getPreferencesFromUser(userId);
+                    logger.info("userId: {} ({})", userId, user.getIDs());
+                }
+                final XContentBuilder builder = JsonXContent.contentBuilder();
+                builder
+                    .startObject()
+                    .field("acknowledged", true)
+                    .endObject();
+                channel.sendResponse(new BytesRestResponse(OK, builder));
+                break;
+            } catch(final Exception e) {
+                handleErrorRequest(channel, e);
+            }
         default:
             notFound(channel);
             break;
