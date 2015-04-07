@@ -53,6 +53,7 @@ public class FlavorRestAction extends BaseRestHandler {
         super(settings, controller, client);
         controller.registerHandler(POST, "/_flavor/reload", this);
         controller.registerHandler(GET,  "/_flavor/{operation}/{id}", this);
+        controller.registerHandler(GET,  "/_flavor/status", this);
     }
 
     @Override
@@ -81,42 +82,51 @@ public class FlavorRestAction extends BaseRestHandler {
             break;
         case GET:
             try {
-                final String operation = request.param("operation");
-                final long id = request.paramAsLong("id", 0);
-                final int size = request.paramAsInt("size", 10);
-
-                final RecommenderBuilder recommenderBuilder =
-                    new FlavorRecommenderBuilder(operation, request.param("similarity"));
-                final Recommender recommender = recommenderBuilder.buildRecommender(dataModel);
-
-                logger.info("recommender: {}", recommender);
-                List<RecommendedItem> items;
-                final long startTime = System.currentTimeMillis();
-                if (operation.equals("similar_items")) {
-                    items = ((ItemBasedRecommender)recommender).mostSimilarItems(id, size);
-                } else {
-                    items = recommender.recommend(id, size);
-                }
-                logger.info("items: {}", items.size());
-
-                final XContentBuilder builder = JsonXContent.contentBuilder();
-                builder
-                    .startObject()
-                    .field("took", System.currentTimeMillis() - startTime)
-                    .startObject("hits")
-                    .field("total", items.size())
-                    .startArray("hits");
-                for (final RecommendedItem item : items) {
+                if (request.path().equals("/_flavor/status")) {
+                    final XContentBuilder builder = JsonXContent.contentBuilder();
                     builder
                         .startObject()
-                        .field("item_id", item.getItemID())
-                        .field("value", item.getValue())
+                        .field("dataModel", dataModel.toString())
+                        .field("users", dataModel.getNumUsers())
+                        .field("items", dataModel.getNumItems())
                         .endObject();
+                    channel.sendResponse(new BytesRestResponse(OK, builder));
+                } else {
+                    final String operation = request.param("operation");
+                    final long id = request.paramAsLong("id", 0);
+                    final int size = request.paramAsInt("size", 10);
+
+                    final RecommenderBuilder recommenderBuilder =
+                        new FlavorRecommenderBuilder(operation, request.param("similarity"));
+                    final Recommender recommender = recommenderBuilder.buildRecommender(dataModel);
+
+                    List<RecommendedItem> items;
+                    final long startTime = System.currentTimeMillis();
+                    if (operation.equals("similar_items")) {
+                        items = ((ItemBasedRecommender)recommender).mostSimilarItems(id, size);
+                    } else {
+                        items = recommender.recommend(id, size);
+                    }
+
+                    final XContentBuilder builder = JsonXContent.contentBuilder();
+                    builder
+                        .startObject()
+                        .field("took", System.currentTimeMillis() - startTime)
+                        .startObject("hits")
+                        .field("total", items.size())
+                        .startArray("hits");
+                    for (final RecommendedItem item : items) {
+                        builder
+                            .startObject()
+                            .field("item_id", item.getItemID())
+                            .field("value", item.getValue())
+                            .endObject();
+                    }
+                    builder
+                        .endArray()
+                        .endObject();
+                    channel.sendResponse(new BytesRestResponse(OK, builder));
                 }
-                builder
-                    .endArray()
-                    .endObject();
-                channel.sendResponse(new BytesRestResponse(OK, builder));
                 break;
             } catch(final Exception e) {
                 handleErrorRequest(channel, e);

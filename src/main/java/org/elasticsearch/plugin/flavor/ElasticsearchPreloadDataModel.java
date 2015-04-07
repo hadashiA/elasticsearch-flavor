@@ -276,6 +276,6 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
 
     @Override
     public String toString() {
-        return "ElasticsearchPreloadDataModel[client:" + client + ']';
+        return "ElasticsearchPreloadDataModel[index:" + preferenceIndex + " type:" + preferenceType + "]";
     }
 }

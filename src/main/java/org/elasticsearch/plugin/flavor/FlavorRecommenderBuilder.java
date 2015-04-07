@@ -8,6 +8,7 @@ import org.apache.mahout.cf.taste.recommender.Recommender;
 import org.apache.mahout.cf.taste.similarity.ItemSimilarity;
 import org.apache.mahout.cf.taste.impl.similarity.LogLikelihoodSimilarity;
 import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
+import org.apache.mahout.cf.taste.impl.similarity.PearsonCorrelationSimilarity;
 import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
 
 public class FlavorRecommenderBuilder implements RecommenderBuilder {
@@ -20,12 +21,19 @@ public class FlavorRecommenderBuilder implements RecommenderBuilder {
     }
 
     public Recommender buildRecommender(DataModel dataModel) throws TasteException {
-        if (operationName != null && operationName.equals("similar_items")) {
-            ItemSimilarity similarity;
-            if (similarityName != null && similarityName.equals("LogLikelihoodSimilarity")) {
-                similarity = new LogLikelihoodSimilarity(dataModel);
-            } else {
-                similarity = new EuclideanDistanceSimilarity(dataModel);
+        if (operationName == null) {
+            throw new TasteException("Operation not specified.");
+        }
+
+        if (operationName.equals("similar_items")) {
+            ItemSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
+            if (similarityName != null) {
+                if (similarityName.equals("EuclideanDistanceSimilarity")) {
+                    similarity = new EuclideanDistanceSimilarity(dataModel);
+
+                } else if (similarityName.equals("LogLikelihoodSimilarity")) {
+                    similarity = new LogLikelihoodSimilarity(dataModel);
+                }
             }
             GenericItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, similarity);
             return recommender;
