@@ -33,6 +33,8 @@ public class FlavorRecommenderBuilder implements RecommenderBuilder {
 
                 } else if (similarityName.equals("LogLikelihoodSimilarity")) {
                     similarity = new LogLikelihoodSimilarity(dataModel);
+                } else {
+                    throw new TasteException("ItemSimilarity algorithm not support: " + similarityName);
                 }
             }
             GenericItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, similarity);

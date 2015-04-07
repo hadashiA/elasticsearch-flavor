@@ -27,6 +27,8 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
+
+import org.apache.mahout.cf.taste.common.NoSuchItemException;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
 import org.apache.mahout.cf.taste.eval.RecommenderBuilder;
@@ -69,37 +71,25 @@ public class FlavorRestAction extends BaseRestHandler {
 
                 final DataModelBuilder dataModelBuilder = new DataModelBuilder(client, json);
                 this.dataModel = dataModelBuilder.build();
-                final XContentBuilder builder = JsonXContent.contentBuilder();
-                builder
-                    .startObject()
-                    .field("acknowledged", true)
-                    .endObject();
-                channel.sendResponse(new BytesRestResponse(OK, builder));
+                renderStatus(channel);
                 
             } catch (final Exception e) {
                 handleErrorRequest(channel, e);
             }
             break;
         case GET:
-            try {
-                if (request.path().equals("/_flavor/status")) {
-                    final XContentBuilder builder = JsonXContent.contentBuilder();
-                    builder
-                        .startObject()
-                        .field("dataModel", dataModel.toString())
-                        .field("users", dataModel.getNumUsers())
-                        .field("items", dataModel.getNumItems())
-                        .endObject();
-                    channel.sendResponse(new BytesRestResponse(OK, builder));
-                } else {
+            if (request.path().equals("/_flavor/status")) {
+                renderStatus(channel);
+            } else {
+                try {
                     final String operation = request.param("operation");
                     final long id = request.paramAsLong("id", 0);
                     final int size = request.paramAsInt("size", 10);
-
+            
                     final RecommenderBuilder recommenderBuilder =
                         new FlavorRecommenderBuilder(operation, request.param("similarity"));
                     final Recommender recommender = recommenderBuilder.buildRecommender(dataModel);
-
+            
                     List<RecommendedItem> items;
                     final long startTime = System.currentTimeMillis();
                     if (operation.equals("similar_items")) {
@@ -107,7 +97,7 @@ public class FlavorRestAction extends BaseRestHandler {
                     } else {
                         items = recommender.recommend(id, size);
                     }
-
+            
                     final XContentBuilder builder = JsonXContent.contentBuilder();
                     builder
                         .startObject()
@@ -126,14 +116,47 @@ public class FlavorRestAction extends BaseRestHandler {
                         .endArray()
                         .endObject();
                     channel.sendResponse(new BytesRestResponse(OK, builder));
+
+                } catch(final NoSuchItemException e) {
+                    renderNotFound(channel, e.getMessage());
+                } catch(final Exception e) {
+                    handleErrorRequest(channel, e);
                 }
-                break;
-            } catch(final Exception e) {
-                handleErrorRequest(channel, e);
             }
-        default:
-            notFound(channel);
             break;
+        default:
+            renderNotFound(channel, "No such action");
+            break;
+        }
+    }
+
+    private void renderNotFound(final RestChannel channel, final String message) {
+        try {
+            // 404
+            XContentBuilder builder = JsonXContent.contentBuilder();
+            builder
+                .startObject()
+                .field("error", message)
+                .field("status", 404)
+                .endObject();
+            channel.sendResponse(new BytesRestResponse(NOT_FOUND, builder));
+        } catch (final IOException e) {
+            handleErrorRequest(channel, e);
+        }
+    }
+
+    private void renderStatus(final RestChannel channel) {
+        try {
+            final XContentBuilder builder = JsonXContent.contentBuilder();
+            builder
+                .startObject()
+                .field("dataModel", dataModel.toString())
+                .field("total_users", dataModel.getNumUsers())
+                .field("total_items", dataModel.getNumItems())
+                .endObject();
+            channel.sendResponse(new BytesRestResponse(OK, builder));
+        } catch (final Exception e) {
+            handleErrorRequest(channel, e);
         }
     }
 
@@ -142,21 +165,6 @@ public class FlavorRestAction extends BaseRestHandler {
             channel.sendResponse(new BytesRestResponse(channel, e));
         } catch (final IOException e1) {
             logger.error("Failed to send a failure response.", e1);
-        }
-    }
-
-    private void notFound(final RestChannel channel) {
-        try {
-            // 404
-            XContentBuilder builder = JsonXContent.contentBuilder();
-            builder
-                .startObject()
-                .field("error", "Invalid operatioin")
-                .field("status", 404)
-                .endObject();
-            channel.sendResponse(new BytesRestResponse(NOT_FOUND, builder));
-        } catch (final IOException e) {
-            handleErrorRequest(channel, e);
         }
     }
 }
