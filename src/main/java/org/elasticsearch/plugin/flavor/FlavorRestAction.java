@@ -27,14 +27,13 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 
-
 import org.apache.mahout.cf.taste.common.NoSuchItemException;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
-import org.apache.mahout.cf.taste.eval.RecommenderBuilder;
 import org.apache.mahout.cf.taste.recommender.RecommendedItem;
 import org.apache.mahout.cf.taste.recommender.Recommender;
 import org.apache.mahout.cf.taste.recommender.ItemBasedRecommender;
+import org.apache.mahout.cf.taste.recommender.UserBasedRecommender;
 import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 
@@ -42,7 +41,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.Gson;
 
 import org.elasticsearch.plugin.flavor.DataModelBuilder;
-import org.elasticsearch.plugin.flavor.FlavorRecommenderBuilder;
+import org.elasticsearch.plugin.flavor.ItemBasedRecommenderBuilder;
+import org.elasticsearch.plugin.flavor.UserBasedRecommenderBuilder;
 
 public class FlavorRestAction extends BaseRestHandler {
     private DataModel dataModel = new GenericDataModel(new FastByIDMap<PreferenceArray>());
@@ -86,39 +86,36 @@ public class FlavorRestAction extends BaseRestHandler {
                     final long id = request.paramAsLong("id", 0);
                     final int size = request.paramAsInt("size", 10);
             
-                    final RecommenderBuilder recommenderBuilder =
-                        new FlavorRecommenderBuilder(operation, request.param("similarity"));
-                    final Recommender recommender = recommenderBuilder.buildRecommender(dataModel);
-            
-                    List<RecommendedItem> items;
                     final long startTime = System.currentTimeMillis();
+
                     if (operation.equals("similar_items")) {
-                        items = ((ItemBasedRecommender)recommender).mostSimilarItems(id, size);
+                        ItemBasedRecommenderBuilder builder = new ItemBasedRecommenderBuilder(request.param("similarity"));
+                        ItemBasedRecommender recommender = builder.buildRecommender(dataModel);
+                        List<RecommendedItem> items = recommender.mostSimilarItems(id, size);
+                        renderRecommendedItems(channel, items, startTime);
+
+                    } else if (operation.equals("similar_users")) {
+                        UserBasedRecommenderBuilder builder =
+                            new UserBasedRecommenderBuilder(request.param("similarity"),
+                                                            request.param("neighborhood"));
+                        UserBasedRecommender recommender = builder.buildRecommender(dataModel);
+                        long[] userIds = recommender.mostSimilarUserIDs(id, size);
+                        renderUserIds(channel, userIds, startTime);
+
+                    } else if (operation.equals("recommend")) {
+                        UserBasedRecommenderBuilder builder =
+                            new UserBasedRecommenderBuilder(request.param("similarity"),
+                                                            request.param("neighborhood"));
+                        UserBasedRecommender recommender = builder.buildRecommender(dataModel);
+                        List<RecommendedItem> items = recommender.recommend(id, size);
+                        renderRecommendedItems(channel, items, startTime);
+
                     } else {
-                        items = recommender.recommend(id, size);
+                        renderNotFound(channel, "Invalid operation: " + operation);
                     }
-            
-                    final XContentBuilder builder = JsonXContent.contentBuilder();
-                    builder
-                        .startObject()
-                        .field("took", System.currentTimeMillis() - startTime)
-                        .startObject("hits")
-                        .field("total", items.size())
-                        .startArray("hits");
-                    for (final RecommendedItem item : items) {
-                        builder
-                            .startObject()
-                            .field("item_id", item.getItemID())
-                            .field("value", item.getValue())
-                            .endObject();
-                    }
-                    builder
-                        .endArray()
-                        .endObject();
-                    channel.sendResponse(new BytesRestResponse(OK, builder));
 
                 } catch(final NoSuchItemException e) {
-                    renderNotFound(channel, e.getMessage());
+                    renderNotFound(channel, e.toString());
                 } catch(final Exception e) {
                     handleErrorRequest(channel, e);
                 }
@@ -127,6 +124,61 @@ public class FlavorRestAction extends BaseRestHandler {
         default:
             renderNotFound(channel, "No such action");
             break;
+        }
+    }
+
+    private void renderRecommendedItems(final RestChannel channel,
+                                        final List<RecommendedItem> items,
+                                        final long startTime) {
+        try {
+            final XContentBuilder builder = JsonXContent.contentBuilder();
+            builder
+                .startObject()
+                .field("took", System.currentTimeMillis() - startTime)
+                .startObject("hits")
+                .field("total", items.size())
+                .startArray("hits");
+            for (final RecommendedItem item : items) {
+                builder
+                    .startObject()
+                    .field("item_id", item.getItemID())
+                    .field("value", item.getValue())
+                    .endObject();
+            }
+            builder
+                .endArray()
+                .endObject();
+            channel.sendResponse(new BytesRestResponse(OK, builder));
+
+        } catch(final Exception e) {
+            handleErrorRequest(channel, e);
+        }
+    }
+
+    private void renderUserIds(final RestChannel channel,
+                               final long[] userIds,
+                               final long startTime) {
+        try {
+            final XContentBuilder builder = JsonXContent.contentBuilder();
+            builder
+                .startObject()
+                .field("took", System.currentTimeMillis() - startTime)
+                .startObject("hits")
+                .field("total", userIds.length)
+                .startArray("hits");
+            for (int i = 0; i < userIds.length; i++) {
+                builder
+                    .startObject()
+                    .field("user_id", userIds[i])
+                    .endObject();
+            }
+            builder
+                .endArray()
+                .endObject();
+            channel.sendResponse(new BytesRestResponse(OK, builder));
+
+        } catch(final Exception e) {
+            handleErrorRequest(channel, e);
         }
     }
 
