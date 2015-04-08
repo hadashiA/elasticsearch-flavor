@@ -69,6 +69,19 @@ Response
 
 ### Similar Items
 
+```
+GET /_flavor/similar_items/{item_id}
+```
+
+Query Parameters
+
+| Name       | Type        | Description                   |
+|:-----------|:------------|:------------------------------|
+| size       | int         | Number of recommend items     |
+| similarity | String      | ItemSimilarity algorithm name.<br>Default value is `PearsonCorrelationSimilarity`. <br>Other values: `EuclideanDistanceSimilarity`<br>`LogLikelihoodSimilarity`<br>`TanimotoCoefficientSimilarity` |
+
+
+Curl Example
 ```bash
 $ curl 'localhost:9200/_flavor/similar_items/5803?size=3'
 HTTP/1.1 200 OK
@@ -97,9 +110,44 @@ Content-Type: application/json; charset=UTF-8
 }
 ```
 
-Query params
+### Similar Users
+
+```
+GET /_flavor/similar_users/{user_id}
+```
+
+Query Parameters
 
 | Name       | Type        | Description                   |
 |:-----------|:------------|:------------------------------|
 | size       | int         | Number of recommend items     |
-| similarity | String      | ItemSimilarity algorithm name.<br>`PearsonCorrelationSimilarity`<br>`EuclideanDistanceSimilarity`<br>`LogLikelihoodSimilarity`<br>`TanimotoCoefficientSimilarity` |
+| similarity | String      | UserSimilarity algorithm name.<br>Defaualt value is `PearsonCorrelationSimilarity`. Other values: `EuclideanDistanceSimilarity`<br>`LogLikelihoodSimilarity`<br>`TanimotoCoefficientSimilarity` |
+| neighborhood | String |  UserNeighborhood algorithm name. |
+
+
+Curl Example
+
+```bash
+$ http get 'localhost:9200/_flavor/similar_users/9?size=3'
+HTTP/1.1 200 OK
+Content-Length: 86
+Content-Type: application/json; charset=UTF-8
+
+{
+    "hits": {
+        "hits": [
+            {
+                "user_id": 15719
+            },
+            {
+                "user_id": 2
+            },
+            {
+                "user_id": 78
+            }
+        ],
+        "total": 3
+    },
+    "took": 55
+}
+```
