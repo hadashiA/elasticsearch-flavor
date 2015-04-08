@@ -65,19 +65,21 @@ Response
 {"dataModel":"ElasticsearchPreloadDataModel[index:suzuri_preference_development type:preference]","total_users":6907,"total_items":40695}
 ```
 
-### Recommendation
+## Recommendation
+
+### Similar Items
 
 ```bash
-$ curl 'localhost:9200/_flavor/similar_items/5803'
+$ curl 'localhost:9200/_flavor/similar_items/5803?size=3'
 HTTP/1.1 200 OK
-Content-Length: 339
+Content-Length: 126
 Content-Type: application/json; charset=UTF-8
 
 {
     "hits": {
         "hits": [
             {
-                "item_id": 109294,
+                "item_id": 40891,
                 "value": 1.0
             },
             {
@@ -87,38 +89,12 @@ Content-Type: application/json; charset=UTF-8
             {
                 "item_id": 151,
                 "value": 1.0
-            },
-            {
-                "item_id": 40891,
-                "value": 1.0
-            },
-            {
-                "item_id": 48077,
-                "value": 1.0
-            },
-            {
-                "item_id": 43691,
-                "value": 1.0
-            },
-            {
-                "item_id": 20018,
-                "value": 1.0
-            },
-            {
-                "item_id": 38654,
-                "value": 1.0
-            },
-            {
-                "item_id": 38727,
-                "value": 1.0
-            },
-            {
-                "item_id": 43846,
-                "value": 1.0
             }
         ],
-        "total": 10
+        "total": 3
     },
-    "took": 35
+    "took": 4
 }
 ```
+
+
