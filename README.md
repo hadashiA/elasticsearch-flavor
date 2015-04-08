@@ -97,4 +97,11 @@ Content-Type: application/json; charset=UTF-8
 }
 ```
 
+Query params
+
+| Name       | Type        | Description                   |
+|:-----------|:------------|:------------------------------|
+| size       | int         | Number of recommend items     |
+| similarity | String      | ItemSimilarity algorithm name.<br>PearsonCorrelationSimilarity<br>EuclideanDistanceSimilarity<br>LogLikelihoodSimilarity<br>TanimotoCoefficientSimilarity |
+
 
