@@ -9,9 +9,14 @@
 	<description>Realtime recommendation rest api</description>
 	<scm>
 		<connection>scm:git:git@github.com:f-kubotar/elasticsearch-flavor.git</connection>
-		<developerConnection>scm:git:git@github.com:codelibs/elasticsearch-taste.git</developerConnection>
-		<url>git@github.com:codelibs/elasticsearch-flavor.git</url>
+		<developerConnection>scm:git:git@github.com:f-kubotar/elasticsearch-flavor.git</developerConnection>
+		<url>git@github.com:f-kubotar/elasticsearch-taste.git</url>
 	</scm>
+	<properties>
+		<elasticsearch.version>1.4.0</elasticsearch.version>
+		<lucene.version>4.10.2</lucene.version>
+		<mahout.version>0.9</mahout.version>
+	</properties>
 	<build>
 		<plugins>
 			<plugin>
@@ -48,18 +53,26 @@
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<version>1.4.0</version>
-			<scope>compile</scope>
+			<version>${elasticsearch.version}</version>
+			<scope>provided</scope>
 		</dependency>
+        <dependency>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+          <version>2.3.1</version>
+          <scope>compile</scope>
+        </dependency>
 		<dependency>
 			<groupId>org.apache.mahout</groupId>
 			<artifactId>mahout-core</artifactId>
-			<version>0.9</version>
+			<version>${mahout.version}</version>
+            <scope>compile</scope>
 		</dependency>
+
         <dependency>
             <groupId>org.codelibs</groupId>
             <artifactId>elasticsearch-cluster-runner</artifactId>
-            <version>1.4.1.0</version>
+            <version>1.4.2.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -67,12 +80,6 @@
             <artifactId>junit</artifactId>
             <version>4.11</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>com.google.code.gson</groupId>
-          <artifactId>gson</artifactId>
-          <version>2.3.1</version>
-          <scope>compile</scope>
         </dependency>
 	</dependencies>
 </project>
