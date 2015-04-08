@@ -122,7 +122,6 @@ Query Parameters
 |:-----------|:------------|:------------------------------|
 | size       | int         | Number of recommend items     |
 | similarity | String      | UserSimilarity algorithm name.<br>Defaualt value is `PearsonCorrelationSimilarity`. Other values: `EuclideanDistanceSimilarity`<br>`LogLikelihoodSimilarity`<br>`TanimotoCoefficientSimilarity` |
-| neighborhood | String |  UserNeighborhood algorithm name. |
 
 
 Curl Example
