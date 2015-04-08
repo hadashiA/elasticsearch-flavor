@@ -1,7 +1,5 @@
 # elasticsearch-flavor
 
-**WORK IN PROGRESS**
-
 Apache Mahout base Recommendation engine.
 Use elasticsearch to storage and REST interface.
 
