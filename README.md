@@ -67,4 +67,58 @@ Response
 
 ### Recommendation
 
+```bash
+$ curl 'localhost:9200/_flavor/similar_items/5803'
+HTTP/1.1 200 OK
+Content-Length: 339
+Content-Type: application/json; charset=UTF-8
 
+{
+    "hits": {
+        "hits": [
+            {
+                "item_id": 109294,
+                "value": 1.0
+            },
+            {
+                "item_id": 48541,
+                "value": 1.0
+            },
+            {
+                "item_id": 151,
+                "value": 1.0
+            },
+            {
+                "item_id": 40891,
+                "value": 1.0
+            },
+            {
+                "item_id": 48077,
+                "value": 1.0
+            },
+            {
+                "item_id": 43691,
+                "value": 1.0
+            },
+            {
+                "item_id": 20018,
+                "value": 1.0
+            },
+            {
+                "item_id": 38654,
+                "value": 1.0
+            },
+            {
+                "item_id": 38727,
+                "value": 1.0
+            },
+            {
+                "item_id": 43846,
+                "value": 1.0
+            }
+        ],
+        "total": 10
+    },
+    "took": 35
+}
+```
