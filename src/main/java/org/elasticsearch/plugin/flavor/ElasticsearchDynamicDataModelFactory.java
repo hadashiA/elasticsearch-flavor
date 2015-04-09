@@ -35,7 +35,7 @@ import org.apache.mahout.cf.taste.model.PreferenceArray;
 import org.elasticsearch.plugin.flavor.DataModelFactory;
 
 public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
-    private ESLogger logger = Loggers.getLogger(ElasticsearchPreloadDataModel.class);
+    private ESLogger logger = Loggers.getLogger(ElasticsearchDynamicDataModelFactory.class);
     private Client client;
 
     private int scrollSize = 2000;
@@ -76,34 +76,22 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
                 break;
             }
         }
-
-        SearchResponse scroll = client
-            .prepareSearch(index)
-            .setTypes(type)
-            .setSearchType(SearchType.SCAN)
-            .setPostFilter(FilterBuilders.termsFilter("user_id", (Iterable<Long>)userIds))
-            .addFields("user_id", "item_id", "value")
-            .setSize(scrollSize)
-            .setScroll(new TimeValue(keepAlive))
-            .execute()
-            .actionGet();
-        return dataModelFromScrollResponse(scroll);
+        return createDataModelFromUserIds(index, type, userIds);
     }
 
     public DataModel createUserBasedDataModel(final String index,
                                               final String type,
-                                              final long userId) throws TasteException {
+                                              final long targetUserId) throws TasteException {
         SearchResponse itemIdsResponse = client
             .prepareSearch(index)
             .setTypes(type)
             .setSearchType(SearchType.SCAN)
             .setScroll(new TimeValue(keepAlive))
-            .setPostFilter(FilterBuilders.termFilter("user_id", userId))
+            .setPostFilter(FilterBuilders.termFilter("user_id", targetUserId))
             .addFields("item_id")
             .setSize(scrollSize)
             .execute()
             .actionGet();
-
         final long numItems = itemIdsResponse.getHits().getTotalHits();
         FastIDSet itemIds = new FastIDSet((int)numItems);
         while (true) {
@@ -122,20 +110,51 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
             }
         }
 
+        SearchResponse userIdsResponse = client
+            .prepareSearch(index)
+            .setTypes(type)
+            .setSearchType(SearchType.SCAN)
+            .setScroll(new TimeValue(keepAlive))
+            .setPostFilter(FilterBuilders.termsFilter("item_id", itemIds))
+            .addFields("user_id")
+            .setSize(scrollSize)
+            .execute()
+            .actionGet();
+        final long numUsers = userIdsResponse.getHits().getTotalHits();
+        FastIDSet userIds = new FastIDSet((int)numUsers);
+        while (true) {
+            for (SearchHit hit : userIdsResponse.getHits().getHits()) {
+                final long userId = getLongValue(hit, "user_id");
+                userIds.add(userId);
+            }
+            //Break condition: No hits are returned
+            userIdsResponse = client
+                .prepareSearchScroll(userIdsResponse.getScrollId())
+                .setScroll(new TimeValue(keepAlive))
+                .execute()
+                .actionGet();
+            if (userIdsResponse.getHits().getHits().length == 0) {
+                break;
+            }
+        }
+        logger.info("itemIds: {}, userIds: {}", itemIds, userIds);
+        return createDataModelFromUserIds(index, type, userIds);
+    }
+
+    public DataModel createDataModelFromUserIds(final String index,
+                                                final String type,
+                                                final FastIDSet userIds) {
         SearchResponse scroll = client
             .prepareSearch(index)
             .setTypes(type)
             .setSearchType(SearchType.SCAN)
-            .setPostFilter(FilterBuilders.termsFilter("item_id", itemIds))
+            .setPostFilter(FilterBuilders.termsFilter("user_id", userIds))
             .addFields("user_id", "item_id", "value")
             .setSize(scrollSize)
             .setScroll(new TimeValue(keepAlive))
             .execute()
             .actionGet();
-        return dataModelFromScrollResponse(scroll);
-    }
 
-    private DataModel dataModelFromScrollResponse(SearchResponse scroll) {
         final long total = scroll.getHits().getTotalHits();
         FastByIDMap<PreferenceArray> users = new FastByIDMap<PreferenceArray>((int)total);
         while (true) {

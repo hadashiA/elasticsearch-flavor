@@ -13,7 +13,7 @@
 		<url>git@github.com:f-kubotar/elasticsearch-taste.git</url>
 	</scm>
 	<properties>
-		<elasticsearch.version>1.4.0</elasticsearch.version>
+		<elasticsearch.version>1.4.4</elasticsearch.version>
 		<lucene.version>4.10.2</lucene.version>
 		<mahout.version>0.9</mahout.version>
 	</properties>

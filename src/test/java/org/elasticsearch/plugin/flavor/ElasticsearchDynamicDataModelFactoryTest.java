@@ -122,20 +122,20 @@ public class ElasticsearchDynamicDataModelFactoryTest {
     public void testCreateItemBasedDataModel() throws Exception {
         DataModel dataModel = factory.createItemBasedDataModel(index, type, 101);
         assertEquals(2, dataModel.getNumUsers());
-        assertEquals(5, dataModel.getNumItems());
+        assertEquals(3, dataModel.getNumItems());
 
         PreferenceArray user1 = dataModel.getPreferencesFromUser(1);
         assertEquals(3, user1.getIDs().length);
 
-        PreferenceArray user2 = dataModel.getPreferencesFromUser(2);
-        assertEquals(1, user2.getIDs().length);
+        PreferenceArray user3 = dataModel.getPreferencesFromUser(3);
+        assertEquals(2, user3.getIDs().length);
     }
 
     @Test
     public void testCreateUserBasedDataModel() throws Exception {
         DataModel dataModel = factory.createUserBasedDataModel(index, type, 1);
         assertEquals(3, dataModel.getNumUsers());
-        assertEquals(6, dataModel.getNumItems());
+        assertEquals(3, dataModel.getNumItems());
 
         PreferenceArray user1 = dataModel.getPreferencesFromUser(1);
         assertEquals(3, user1.getIDs().length);
