@@ -11,6 +11,9 @@ Use elasticsearch to storage and REST interface.
 
 ## Installation
 
+```bashe
+$ plugin --url 'https://github.com/f-kubotar/elasticsearch-flavor/releases/download/v0.0.2/elasticsearch-flavor-0.0.2.zip' --install flavor
+```
 
 ## Getting Start
 
