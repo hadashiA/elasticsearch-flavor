@@ -7,7 +7,7 @@ Use elasticsearch to storage and REST interface.
 
 | Flavor | Elasticsearch |
 |:-------|:-------------|
-| 0.0.1  | 1.4.0        |
+| 0.0.2  | 1.4.0        |
 
 ## Installation
 
@@ -44,44 +44,28 @@ curl -XPOST localhost:9200/my_index -d '{
 | item_id | long  | Unique Item ID for this plugin. |
 | value   | float | Value rated by user_id for item_id. |
 
-### Preprocessing
-
-Before you run the recommendation, preload the preference.
-(Read into memory using the FastIDSet of Mahout.)
-
-```bash
-curl -XPOST localhost:9200/_flavor/reload -d '{
-    "preference" : {
-        "index" : "my_index",
-        "type" : "preference"
-    }
-}'
-```
-
-Response
-```
-{"dataModel":"ElasticsearchPreloadDataModel[index:suzuri_preference_development type:preference]","total_users":6907,"total_items":40695}
-```
 
 ## Recommendation
 
 ### Similar Items
 
 ```
-GET /_flavor/similar_items/{item_id}
+GET /_flavor/{index}/{type}/similar_items/{item_id}
 ```
 
 Query Parameters
 
 | Name       | Type        | Description                   |
 |:-----------|:------------|:------------------------------|
+| index      | String      | Index name that there is preference.  |
+| type       | String      | Document Type name of the preference.  |
 | size       | int         | Number of recommend items     |
 | similarity | String      | ItemSimilarity algorithm name.<br>Default value is `PearsonCorrelationSimilarity`. <br>Other values: `EuclideanDistanceSimilarity`<br>`LogLikelihoodSimilarity`<br>`TanimotoCoefficientSimilarity` |
 
 
 Curl Example
 ```bash
-$ curl 'localhost:9200/_flavor/similar_items/5803?size=3'
+$ curl 'localhost:9200/my_index/preference/_flavor/similar_items/5803?size=3'
 HTTP/1.1 200 OK
 Content-Length: 126
 Content-Type: application/json; charset=UTF-8
@@ -118,6 +102,8 @@ Query Parameters
 
 | Name       | Type        | Description                   |
 |:-----------|:------------|:------------------------------|
+| index      | String      | Index name that there is preference.  |
+| type       | String      | Document Type name of the preference.  |
 | size       | int         | Number of recommend items     |
 | similarity | String      | UserSimilarity algorithm name.<br>Defaualt value is `PearsonCorrelationSimilarity`. Other values: `EuclideanDistanceSimilarity`<br>`LogLikelihoodSimilarity`<br>`TanimotoCoefficientSimilarity` |
 
@@ -147,4 +133,30 @@ Content-Type: application/json; charset=UTF-8
     },
     "took": 55
 }
+```
+
+## Preload
+
+Read all preference data into memory using the FastIDSet of Mahout.
+
+```bash
+curl -XPOST localhost:9200/_flavor/reload -d '{
+    "preference" : {
+        "index" : "my_index",
+        "type" : "preference"
+    }
+}'
+```
+
+Response
+```
+{"dataModel":"ElasticsearchPreloadDataModel[index:suzuri_preference_development type:preference]","total_users":6907,"total_items":40695}
+```
+
+### Preload data Usage
+
+If you omit the `{index}/{type}`, to become using preload data.
+
+```bash
+$ curl localhost:9200/_flavor/similar_items/101
 ```
