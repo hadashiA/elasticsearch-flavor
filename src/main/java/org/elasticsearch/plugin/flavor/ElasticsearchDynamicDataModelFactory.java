@@ -93,7 +93,46 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
     public DataModel createUserBasedDataModel(final String index,
                                               final String type,
                                               final long userId) throws TasteException {
-        return new GenericDataModel(new FastByIDMap<PreferenceArray>());
+        SearchResponse itemIdsResponse = client
+            .prepareSearch(index)
+            .setTypes(type)
+            .setSearchType(SearchType.SCAN)
+            .setScroll(new TimeValue(keepAlive))
+            .setPostFilter(FilterBuilders.termFilter("user_id", userId))
+            .addFields("item_id")
+            .setSize(scrollSize)
+            .execute()
+            .actionGet();
+
+        final long numItems = itemIdsResponse.getHits().getTotalHits();
+        FastIDSet itemIds = new FastIDSet((int)numItems);
+        while (true) {
+            for (SearchHit hit : itemIdsResponse.getHits().getHits()) {
+                final long itemId = getLongValue(hit, "item_id");
+                itemIds.add(itemId);
+            }
+            //Break condition: No hits are returned
+            itemIdsResponse = client
+                .prepareSearchScroll(itemIdsResponse.getScrollId())
+                .setScroll(new TimeValue(keepAlive))
+                .execute()
+                .actionGet();
+            if (itemIdsResponse.getHits().getHits().length == 0) {
+                break;
+            }
+        }
+
+        SearchResponse scroll = client
+            .prepareSearch(index)
+            .setTypes(type)
+            .setSearchType(SearchType.SCAN)
+            .setPostFilter(FilterBuilders.termsFilter("item_id", itemIds))
+            .addFields("user_id", "item_id", "value")
+            .setSize(scrollSize)
+            .setScroll(new TimeValue(keepAlive))
+            .execute()
+            .actionGet();
+        return dataModelFromScrollResponse(scroll);
     }
 
     private DataModel dataModelFromScrollResponse(SearchResponse scroll) {
