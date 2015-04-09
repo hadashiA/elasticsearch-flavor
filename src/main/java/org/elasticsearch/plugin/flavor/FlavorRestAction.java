@@ -40,12 +40,15 @@ import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import com.google.gson.JsonObject;
 import com.google.gson.Gson;
 
-import org.elasticsearch.plugin.flavor.DataModelBuilder;
+import org.elasticsearch.plugin.flavor.DataModelFactory;
+import org.elasticsearch.plugin.flavor.ElasticsearchPreloadDataModelFactory;
+import org.elasticsearch.plugin.flavor.ElasticsearchDynamicDataModelFactory;
 import org.elasticsearch.plugin.flavor.ItemBasedRecommenderBuilder;
 import org.elasticsearch.plugin.flavor.UserBasedRecommenderBuilder;
 
 public class FlavorRestAction extends BaseRestHandler {
-    private DataModel dataModel = new GenericDataModel(new FastByIDMap<PreferenceArray>());
+    private DataModel itemBasedDataModel;
+    private DataModel userBasedDataModel;
     private ESLogger logger = Loggers.getLogger(FlavorRestAction.class);
 
     @Inject
@@ -53,7 +56,8 @@ public class FlavorRestAction extends BaseRestHandler {
                             final RestController controller,
                             final Client client) {
         super(settings, controller, client);
-        controller.registerHandler(POST, "/_flavor/reload", this);
+        controller.registerHandler(POST, "/_flavor/preload", this);
+        controller.registerHandler(GET,  "/_flavor/{index}/{type}/{operation}/{id}", this);
         controller.registerHandler(GET,  "/_flavor/{operation}/{id}", this);
         controller.registerHandler(GET,  "/_flavor/status", this);
     }
@@ -69,8 +73,9 @@ public class FlavorRestAction extends BaseRestHandler {
                 final String jsonString = XContentHelper.convertToJson(request.content(), true);
                 JsonObject json = new Gson().fromJson(jsonString, JsonObject.class);
 
-                final DataModelBuilder dataModelBuilder = new DataModelBuilder(client, json);
-                this.dataModel = dataModelBuilder.build();
+                final DataModelFactory factory = new ElasticsearchPreloadDataModelFactory(client, json);
+                this.itemBasedDataModel = factory.createItemBasedDataModel(0);
+                this.userBasedDataModel = factory.createUserBasedDataModel(0);
                 renderStatus(channel);
                 
             } catch (final Exception e) {
@@ -83,32 +88,37 @@ public class FlavorRestAction extends BaseRestHandler {
             } else {
                 try {
                     final String operation = request.param("operation");
-                    final long id = request.paramAsLong("id", 0);
-                    final int size = request.paramAsInt("size", 10);
-            
+                    final String index     = request.param("index");
+                    final String type      = request.param("type");
+                    final long id          = request.paramAsLong("id", 0);
+                    final int size         = request.paramAsInt("size", 10);
+
                     final long startTime = System.currentTimeMillis();
 
+                    final DataModelFactory factory =
+                        new ElasticsearchDynamicDataModelFactory(client, index, type);
+
                     if (operation.equals("similar_items")) {
+                        DataModel dataModel = itemBasedDataModel;
+                        if (index != null || dataModel == null) {
+                            dataModel = factory.createItemBasedDataModel(id);
+                        }
                         ItemBasedRecommenderBuilder builder = new ItemBasedRecommenderBuilder(request.param("similarity"));
                         ItemBasedRecommender recommender = builder.buildRecommender(dataModel);
                         List<RecommendedItem> items = recommender.mostSimilarItems(id, size);
                         renderRecommendedItems(channel, items, startTime);
 
                     } else if (operation.equals("similar_users")) {
+                        DataModel dataModel = itemBasedDataModel;
+                        if (index != null || dataModel == null) {
+                            dataModel = factory.createUserBasedDataModel(id);
+                        }
                         UserBasedRecommenderBuilder builder =
                             new UserBasedRecommenderBuilder(request.param("similarity"),
                                                             request.param("neighborhood"));
                         UserBasedRecommender recommender = builder.buildRecommender(dataModel);
                         long[] userIds = recommender.mostSimilarUserIDs(id, size);
                         renderUserIds(channel, userIds, startTime);
-
-                    } else if (operation.equals("recommend")) {
-                        UserBasedRecommenderBuilder builder =
-                            new UserBasedRecommenderBuilder(request.param("similarity"),
-                                                            request.param("neighborhood"));
-                        UserBasedRecommender recommender = builder.buildRecommender(dataModel);
-                        List<RecommendedItem> items = recommender.recommend(id, size);
-                        renderRecommendedItems(channel, items, startTime);
 
                     } else {
                         renderNotFound(channel, "Invalid operation: " + operation);
@@ -202,9 +212,9 @@ public class FlavorRestAction extends BaseRestHandler {
             final XContentBuilder builder = JsonXContent.contentBuilder();
             builder
                 .startObject()
-                .field("dataModel", dataModel.toString())
-                .field("total_users", dataModel.getNumUsers())
-                .field("total_items", dataModel.getNumItems())
+                .field("preloadDataModel", userBasedDataModel.toString())
+                .field("total_users", userBasedDataModel.getNumUsers())
+                .field("total_items", userBasedDataModel.getNumItems())
                 .endObject();
             channel.sendResponse(new BytesRestResponse(OK, builder));
         } catch (final Exception e) {

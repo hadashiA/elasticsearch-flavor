@@ -10,10 +10,7 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHitField;
 import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.sort.SortBuilders;
-import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermsFilterBuilder;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.search.SearchResponse;
 

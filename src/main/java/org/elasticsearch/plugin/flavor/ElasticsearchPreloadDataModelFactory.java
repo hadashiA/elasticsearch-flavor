@@ -13,19 +13,19 @@ import org.apache.mahout.cf.taste.model.DataModel;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 
+import org.elasticsearch.plugin.flavor.DataModelFactory;
 import org.elasticsearch.plugin.flavor.ElasticsearchPreloadDataModel;
 
-public class DataModelBuilder {
-    private ESLogger logger = Loggers.getLogger(DataModelBuilder.class);
+public class ElasticsearchPreloadDataModelFactory implements DataModelFactory {
+    private ESLogger logger = Loggers.getLogger(ElasticsearchPreloadDataModelFactory.class);
     private Client client;
-    private JsonObject settings;
+    private String index;
+    private String type;
+    private DataModel dataModel;
 
-    public DataModelBuilder(final Client client, final JsonObject settings) {
-        this.client   = client;
-        this.settings = settings;
-    }
+    public ElasticsearchPreloadDataModelFactory(final Client client, final JsonObject settings) {
+        this.client = client;
 
-    public DataModel build() throws TasteException {
         final JsonElement preferenceSettingsElement = settings.getAsJsonObject("preference");
         if (preferenceSettingsElement.isJsonNull()) {
             throw new InvalidParameterException("preference key not found.");
@@ -46,8 +46,6 @@ public class DataModelBuilder {
         if (preferenceTypeElement != null && !preferenceTypeElement.isJsonNull()) {
             preferenceType = preferenceTypeElement.getAsString();
         }
-        final ElasticsearchPreloadDataModel dataModel =
-            new ElasticsearchPreloadDataModel(client, preferenceIndex, preferenceType);
         // if (settings.containsKey("keepAlive")) {
         //     dataModel.setKeepAlive(settings.get("keepAlive"));
         // }
@@ -55,7 +53,27 @@ public class DataModelBuilder {
         //     dataModel.setScrollSize(settings.get("scrollSize"));
         // }
 
-        dataModel.reload();
+        this.index = preferenceIndex;
+        this.type  = preferenceType;
+    }
+
+    public DataModel createItemBasedDataModel(final long itemId) throws TasteException {
+        logger.info("{} {}", index, type);
+
+        if (dataModel == null) {
+            ElasticsearchPreloadDataModel preloadDataModel = new ElasticsearchPreloadDataModel(client, index, type);
+            preloadDataModel.reload();
+            this.dataModel = preloadDataModel;
+        }
+        return dataModel;
+    }
+
+    public DataModel createUserBasedDataModel(final long userId) throws TasteException {
+        if (dataModel == null) {
+            ElasticsearchPreloadDataModel preloadDataModel = new ElasticsearchPreloadDataModel(client, index, type);
+            preloadDataModel.reload();
+            this.dataModel = preloadDataModel;
+        }
         return dataModel;
     }
 }
