@@ -1,5 +1,7 @@
 package org.elasticsearch.plugin.flavor;
 
+import java.util.HashSet;
+
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.logging.ESLogger;
@@ -10,6 +12,7 @@ import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.TermsFilterBuilder;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.search.SearchResponse;
@@ -34,22 +37,130 @@ import org.elasticsearch.plugin.flavor.DataModelFactory;
 public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
     private ESLogger logger = Loggers.getLogger(ElasticsearchPreloadDataModel.class);
     private Client client;
-    private String preferenceIndex;
-    private String preferenceType;
 
-    public ElasticsearchDynamicDataModelFactory(final Client client,
-                                                final String preferenceIndex,
-                                                final String preferenceType) {
+    private int scrollSize = 2000;
+    private long keepAlive = 10000;
+
+    public ElasticsearchDynamicDataModelFactory(final Client client) {
         this.client = client;
-        this.preferenceIndex = preferenceIndex;
-        this.preferenceType = preferenceType;
     }
 
-    public DataModel createItemBasedDataModel(final long itemId) throws TasteException {
+    public DataModel createItemBasedDataModel(final String index,
+                                              final String type,
+                                              final long itemId) throws TasteException {
+        SearchResponse userIdsResponse = client
+            .prepareSearch(index)
+            .setTypes(type)
+            .setSearchType(SearchType.SCAN)
+            .setScroll(new TimeValue(keepAlive))
+            .setPostFilter(FilterBuilders.termFilter("item_id", itemId))
+            .addFields("user_id")
+            .setSize(scrollSize)
+            .execute()
+            .actionGet();
+
+        final long numUsers = userIdsResponse.getHits().getTotalHits();
+        FastIDSet userIds = new FastIDSet((int)numUsers);
+        while (true) {
+            for (SearchHit hit : userIdsResponse.getHits().getHits()) {
+                final long userId = getLongValue(hit, "user_id");
+                userIds.add(userId);
+            }
+            //Break condition: No hits are returned
+            userIdsResponse = client
+                .prepareSearchScroll(userIdsResponse.getScrollId())
+                .setScroll(new TimeValue(keepAlive))
+                .execute()
+                .actionGet();
+            if (userIdsResponse.getHits().getHits().length == 0) {
+                break;
+            }
+        }
+
+        SearchResponse scroll = client
+            .prepareSearch(index)
+            .setTypes(type)
+            .setSearchType(SearchType.SCAN)
+            .setPostFilter(FilterBuilders.termsFilter("user_id", (Iterable<Long>)userIds))
+            .addFields("user_id", "item_id", "value")
+            .setSize(scrollSize)
+            .setScroll(new TimeValue(keepAlive))
+            .execute()
+            .actionGet();
+        return dataModelFromScrollResponse(scroll);
+    }
+
+    public DataModel createUserBasedDataModel(final String index,
+                                              final String type,
+                                              final long userId) throws TasteException {
         return new GenericDataModel(new FastByIDMap<PreferenceArray>());
     }
 
-    public DataModel createUserBasedDataModel(final long userId) throws TasteException {
-        return new GenericDataModel(new FastByIDMap<PreferenceArray>());
+    private DataModel dataModelFromScrollResponse(SearchResponse scroll) {
+        final long total = scroll.getHits().getTotalHits();
+        FastByIDMap<PreferenceArray> users = new FastByIDMap<PreferenceArray>((int)total);
+        while (true) {
+            for (SearchHit hit : scroll.getHits().getHits()) {
+                final long  userId = getLongValue(hit, "user_id");
+                final long  itemId = getLongValue(hit, "item_id");
+                final float value  = getFloatValue(hit, "value");
+
+                if (users.containsKey(userId)) {
+                    GenericUserPreferenceArray user = (GenericUserPreferenceArray)users.get(userId);
+                    GenericUserPreferenceArray newUser = new GenericUserPreferenceArray(user.length() + 1);
+                    int currentLength = user.length();
+                    for (int i = 0; i < currentLength; i++) {
+                        newUser.setUserID(i, user.getUserID(i));
+                        newUser.setItemID(i, user.getItemID(i));
+                        newUser.setValue(i, user.getValue(i));
+                    }
+                    newUser.setUserID(currentLength, userId);
+                    newUser.setItemID(currentLength, itemId);
+                    newUser.setValue(currentLength, value);
+                    users.put(userId, newUser);
+                    
+                } else {
+                    GenericUserPreferenceArray user = new GenericUserPreferenceArray(1);
+                    user.setUserID(0, userId);
+                    user.setItemID(0, itemId);
+                    user.setValue(0, value);
+                    users.put(userId, user);
+                }
+            }
+            //Break condition: No hits are returned
+            scroll = client
+                .prepareSearchScroll(scroll.getScrollId())
+                .setScroll(new TimeValue(keepAlive))
+                .execute()
+                .actionGet();
+            if (scroll.getHits().getHits().length == 0) {
+                break;
+            }
+        }
+        return new GenericDataModel((FastByIDMap<PreferenceArray>)users);
+    }
+
+    private long getLongValue(final SearchHit hit, final String field) {
+        final SearchHitField result = hit.field(field);
+        if (result == null) {
+            return 0;
+        }
+        final Number longValue = result.getValue();
+        if (longValue == null) {
+            return 0;
+        }
+        return longValue.longValue();
+    }
+
+    private float getFloatValue(final SearchHit hit, final String field) {
+        final SearchHitField result = hit.field(field);
+        if (result == null) {
+            return 0;
+        }
+        final Number floatValue = result.getValue();
+        if (floatValue == null) {
+            return 0;
+        }
+        return floatValue.floatValue();
     }
 }

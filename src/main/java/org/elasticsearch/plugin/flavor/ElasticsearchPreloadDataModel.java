@@ -49,7 +49,6 @@ public class ElasticsearchPreloadDataModel extends AbstractDataModel {
 
     public void reload() throws TasteException {
         FastByIDMap<PreferenceArray> users = new FastByIDMap<PreferenceArray>();
-
         SearchResponse scroll = client
             .prepareSearch(preferenceIndex)
             .setTypes(preferenceType)

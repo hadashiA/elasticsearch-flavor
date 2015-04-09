@@ -19,8 +19,8 @@ import org.elasticsearch.plugin.flavor.ElasticsearchPreloadDataModel;
 public class ElasticsearchPreloadDataModelFactory implements DataModelFactory {
     private ESLogger logger = Loggers.getLogger(ElasticsearchPreloadDataModelFactory.class);
     private Client client;
-    private String index;
-    private String type;
+    private String index = "preference";
+    private String type = "preference";
     private DataModel dataModel;
 
     public ElasticsearchPreloadDataModelFactory(final Client client, final JsonObject settings) {
@@ -31,20 +31,17 @@ public class ElasticsearchPreloadDataModelFactory implements DataModelFactory {
             throw new InvalidParameterException("preference key not found.");
         }
 
-        String preferenceIndex = "";
-        String preferenceType  = "preference";
-
         final JsonObject preferenceSettings = preferenceSettingsElement.getAsJsonObject();
         JsonElement preferenceIndexElement = preferenceSettings.get("index");
         if (preferenceIndexElement == null || preferenceIndexElement.isJsonNull()) {
             throw new InvalidParameterException("preference.index is null.");
         } else {
-            preferenceIndex = preferenceIndexElement.getAsString();
+            this.index = preferenceIndexElement.getAsString();
         }
 
         JsonElement preferenceTypeElement = preferenceSettings.get("type");
         if (preferenceTypeElement != null && !preferenceTypeElement.isJsonNull()) {
-            preferenceType = preferenceTypeElement.getAsString();
+            this.type = preferenceTypeElement.getAsString();
         }
         // if (settings.containsKey("keepAlive")) {
         //     dataModel.setKeepAlive(settings.get("keepAlive"));
@@ -53,22 +50,23 @@ public class ElasticsearchPreloadDataModelFactory implements DataModelFactory {
         //     dataModel.setScrollSize(settings.get("scrollSize"));
         // }
 
-        this.index = preferenceIndex;
-        this.type  = preferenceType;
     }
 
-    public DataModel createItemBasedDataModel(final long itemId) throws TasteException {
-        logger.info("{} {}", index, type);
-
+    public DataModel createItemBasedDataModel(final String _index,
+                                              final String _type,
+                                              final long _itemId) throws TasteException {
         if (dataModel == null) {
             ElasticsearchPreloadDataModel preloadDataModel = new ElasticsearchPreloadDataModel(client, index, type);
             preloadDataModel.reload();
             this.dataModel = preloadDataModel;
         }
+
         return dataModel;
     }
 
-    public DataModel createUserBasedDataModel(final long userId) throws TasteException {
+    public DataModel createUserBasedDataModel(final String _index,
+                                              final String _type,
+                                              final long _userId) throws TasteException {
         if (dataModel == null) {
             ElasticsearchPreloadDataModel preloadDataModel = new ElasticsearchPreloadDataModel(client, index, type);
             preloadDataModel.reload();

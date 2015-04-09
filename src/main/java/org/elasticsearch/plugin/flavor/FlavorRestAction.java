@@ -47,8 +47,7 @@ import org.elasticsearch.plugin.flavor.ItemBasedRecommenderBuilder;
 import org.elasticsearch.plugin.flavor.UserBasedRecommenderBuilder;
 
 public class FlavorRestAction extends BaseRestHandler {
-    private DataModel itemBasedDataModel;
-    private DataModel userBasedDataModel;
+    private DataModelFactory dataModelFactory;
     private ESLogger logger = Loggers.getLogger(FlavorRestAction.class);
 
     @Inject
@@ -56,10 +55,11 @@ public class FlavorRestAction extends BaseRestHandler {
                             final RestController controller,
                             final Client client) {
         super(settings, controller, client);
+
+        this.dataModelFactory = new ElasticsearchDynamicDataModelFactory(client);
         controller.registerHandler(POST, "/_flavor/preload", this);
-        controller.registerHandler(GET,  "/_flavor/{index}/{type}/{operation}/{id}", this);
+        controller.registerHandler(GET,  "/{index}/{type}/_flavor/{operation}/{id}", this);
         controller.registerHandler(GET,  "/_flavor/{operation}/{id}", this);
-        controller.registerHandler(GET,  "/_flavor/status", this);
     }
 
     @Override
@@ -73,62 +73,49 @@ public class FlavorRestAction extends BaseRestHandler {
                 final String jsonString = XContentHelper.convertToJson(request.content(), true);
                 JsonObject json = new Gson().fromJson(jsonString, JsonObject.class);
 
-                final DataModelFactory factory = new ElasticsearchPreloadDataModelFactory(client, json);
-                this.itemBasedDataModel = factory.createItemBasedDataModel(0);
-                this.userBasedDataModel = factory.createUserBasedDataModel(0);
-                renderStatus(channel);
+                ElasticsearchPreloadDataModelFactory factory = new ElasticsearchPreloadDataModelFactory(client, json);
+                this.dataModelFactory = factory;
+                final DataModel preload = factory.createItemBasedDataModel(null, null, 0);
+                renderStatus(channel, preload);
                 
             } catch (final Exception e) {
                 handleErrorRequest(channel, e);
             }
             break;
         case GET:
-            if (request.path().equals("/_flavor/status")) {
-                renderStatus(channel);
-            } else {
-                try {
-                    final String operation = request.param("operation");
-                    final String index     = request.param("index");
-                    final String type      = request.param("type");
-                    final long id          = request.paramAsLong("id", 0);
-                    final int size         = request.paramAsInt("size", 10);
-
-                    final long startTime = System.currentTimeMillis();
-
-                    final DataModelFactory factory =
-                        new ElasticsearchDynamicDataModelFactory(client, index, type);
-
-                    if (operation.equals("similar_items")) {
-                        DataModel dataModel = itemBasedDataModel;
-                        if (index != null || dataModel == null) {
-                            dataModel = factory.createItemBasedDataModel(id);
-                        }
-                        ItemBasedRecommenderBuilder builder = new ItemBasedRecommenderBuilder(request.param("similarity"));
-                        ItemBasedRecommender recommender = builder.buildRecommender(dataModel);
-                        List<RecommendedItem> items = recommender.mostSimilarItems(id, size);
-                        renderRecommendedItems(channel, items, startTime);
-
-                    } else if (operation.equals("similar_users")) {
-                        DataModel dataModel = itemBasedDataModel;
-                        if (index != null || dataModel == null) {
-                            dataModel = factory.createUserBasedDataModel(id);
-                        }
-                        UserBasedRecommenderBuilder builder =
-                            new UserBasedRecommenderBuilder(request.param("similarity"),
-                                                            request.param("neighborhood"));
-                        UserBasedRecommender recommender = builder.buildRecommender(dataModel);
-                        long[] userIds = recommender.mostSimilarUserIDs(id, size);
-                        renderUserIds(channel, userIds, startTime);
-
-                    } else {
-                        renderNotFound(channel, "Invalid operation: " + operation);
-                    }
-
-                } catch(final NoSuchItemException e) {
-                    renderNotFound(channel, e.toString());
-                } catch(final Exception e) {
-                    handleErrorRequest(channel, e);
+            try {
+                final String operation = request.param("operation");
+                final String index     = request.param("index");
+                final String type      = request.param("type");
+                final long id          = request.paramAsLong("id", 0);
+                final int size         = request.paramAsInt("size", 10);
+                
+                final long startTime = System.currentTimeMillis();
+                
+                if (operation.equals("similar_items")) {
+                    DataModel dataModel = dataModelFactory.createItemBasedDataModel(index, type, id);
+                    ItemBasedRecommenderBuilder builder = new ItemBasedRecommenderBuilder(request.param("similarity"));
+                    ItemBasedRecommender recommender = builder.buildRecommender(dataModel);
+                    List<RecommendedItem> items = recommender.mostSimilarItems(id, size);
+                    renderRecommendedItems(channel, items, startTime);
+                    
+                } else if (operation.equals("similar_users")) {
+                    DataModel dataModel = dataModelFactory.createUserBasedDataModel(index, type, id);
+                    UserBasedRecommenderBuilder builder =
+                        new UserBasedRecommenderBuilder(request.param("similarity"),
+                                                        request.param("neighborhood"));
+                    UserBasedRecommender recommender = builder.buildRecommender(dataModel);
+                    long[] userIds = recommender.mostSimilarUserIDs(id, size);
+                    renderUserIds(channel, userIds, startTime);
+                    
+                } else {
+                    renderNotFound(channel, "Invalid operation: " + operation);
                 }
+                
+            } catch(final NoSuchItemException e) {
+                renderNotFound(channel, e.toString());
+            } catch(final Exception e) {
+                handleErrorRequest(channel, e);
             }
             break;
         default:
@@ -207,14 +194,14 @@ public class FlavorRestAction extends BaseRestHandler {
         }
     }
 
-    private void renderStatus(final RestChannel channel) {
+    private void renderStatus(final RestChannel channel, final DataModel dataModel) {
         try {
             final XContentBuilder builder = JsonXContent.contentBuilder();
             builder
                 .startObject()
-                .field("preloadDataModel", userBasedDataModel.toString())
-                .field("total_users", userBasedDataModel.getNumUsers())
-                .field("total_items", userBasedDataModel.getNumItems())
+                .field("preloadDataModel", dataModel.toString())
+                .field("total_users", dataModel.getNumUsers())
+                .field("total_items", dataModel.getNumItems())
                 .endObject();
             channel.sendResponse(new BytesRestResponse(OK, builder));
         } catch (final Exception e) {
