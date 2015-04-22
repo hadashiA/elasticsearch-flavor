@@ -19,6 +19,7 @@ import org.elasticsearch.action.search.SearchResponse;
 
 import org.apache.mahout.cf.taste.common.Refreshable;
 import org.apache.mahout.cf.taste.common.TasteException;
+import org.apache.mahout.cf.taste.common.NoSuchItemException;
 import org.apache.mahout.cf.taste.impl.model.AbstractDataModel;
 import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
@@ -93,6 +94,10 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
             .execute()
             .actionGet();
         final long numItems = itemIdsResponse.getHits().getTotalHits();
+        if (numItems <= 0) {
+            throw new NoSuchItemException("No such user_id:" + targetUserId);
+        }
+
         FastIDSet itemIds = new FastIDSet((int)numItems);
         while (true) {
             for (SearchHit hit : itemIdsResponse.getHits().getHits()) {

@@ -98,7 +98,6 @@ public class FlavorRestAction extends BaseRestHandler {
                     .neighborhoodNearestN(request.paramAsInt("neighborhoodN", 10))
                     .neighborhoodThreshold((double)request.paramAsFloat("neighborhoodThreshold", 0.1F));
 
-                
                 if (operation.equals("similar_items")) {
                     DataModel dataModel = dataModelFactory.createItemBasedDataModel(index, type, id);
                     ItemBasedRecommender recommender = builder
