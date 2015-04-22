@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.elasticsearch.plugin.flavor</groupId>
 	<artifactId>elasticsearch-flavor</artifactId>
-	<version>0.0.2</version>
+	<version>0.0.3</version>
 	<packaging>jar</packaging>
 	<name>Elasticsearch Recommendation Plugin</name>
 	<description>Realtime recommendation rest api</description>

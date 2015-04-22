@@ -43,8 +43,7 @@ import com.google.gson.Gson;
 import org.elasticsearch.plugin.flavor.DataModelFactory;
 import org.elasticsearch.plugin.flavor.ElasticsearchPreloadDataModelFactory;
 import org.elasticsearch.plugin.flavor.ElasticsearchDynamicDataModelFactory;
-import org.elasticsearch.plugin.flavor.ItemBasedRecommenderBuilder;
-import org.elasticsearch.plugin.flavor.UserBasedRecommenderBuilder;
+import org.elasticsearch.plugin.flavor.RecommenderBuilder;
 
 public class FlavorRestAction extends BaseRestHandler {
     private DataModelFactory dataModelFactory;
@@ -91,22 +90,48 @@ public class FlavorRestAction extends BaseRestHandler {
                 final int size         = request.paramAsInt("size", 10);
                 
                 final long startTime = System.currentTimeMillis();
+
+                final RecommenderBuilder builder = RecommenderBuilder
+                    .builder()
+                    .similarity(request.param("similarity"))
+                    .neighborhood(request.param("neighborhood"));
                 
                 if (operation.equals("similar_items")) {
                     DataModel dataModel = dataModelFactory.createItemBasedDataModel(index, type, id);
-                    ItemBasedRecommenderBuilder builder = new ItemBasedRecommenderBuilder(request.param("similarity"));
-                    ItemBasedRecommender recommender = builder.buildRecommender(dataModel);
+                    ItemBasedRecommender recommender = builder
+                        .dataModel(dataModel)
+                        .itemBasedRecommender();
+
                     List<RecommendedItem> items = recommender.mostSimilarItems(id, size);
                     renderRecommendedItems(channel, items, startTime);
                     
                 } else if (operation.equals("similar_users")) {
                     DataModel dataModel = dataModelFactory.createUserBasedDataModel(index, type, id);
-                    UserBasedRecommenderBuilder builder =
-                        new UserBasedRecommenderBuilder(request.param("similarity"),
-                                                        request.param("neighborhood"));
-                    UserBasedRecommender recommender = builder.buildRecommender(dataModel);
+                    UserBasedRecommender recommender = builder
+                        .dataModel(dataModel)
+                        .userBasedRecommender();
+
                     long[] userIds = recommender.mostSimilarUserIDs(id, size);
                     renderUserIds(channel, userIds, startTime);
+                    
+                } else if (operation.equals("user_based_recommend")) {
+                    DataModel dataModel = dataModelFactory.createUserBasedDataModel(index, type, id);
+                    UserBasedRecommender recommender = builder
+                        .dataModel(dataModel)
+                        .userBasedRecommender();
+
+                    List<RecommendedItem> items = recommender.recommend(id, size);
+                    renderRecommendedItems(channel, items, startTime);
+                    
+
+                } else if (operation.equals("item_based_recommend")) {
+                    DataModel dataModel = dataModelFactory.createUserBasedDataModel(index, type, id);
+                    ItemBasedRecommender recommender = builder
+                        .dataModel(dataModel)
+                        .itemBasedRecommender();
+
+                    List<RecommendedItem> items = recommender.recommend(id, size);
+                    renderRecommendedItems(channel, items, startTime);
                     
                 } else {
                     renderNotFound(channel, "Invalid operation: " + operation);
