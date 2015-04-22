@@ -137,7 +137,7 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
                 break;
             }
         }
-        logger.info("itemIds: {}, userIds: {}", itemIds, userIds);
+        // logger.info("itemIds: {}, userIds: {}", itemIds, userIds);
         return createDataModelFromUserIds(index, type, userIds);
     }
 

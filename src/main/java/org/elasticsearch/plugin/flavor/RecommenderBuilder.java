@@ -1,5 +1,8 @@
 package org.elasticsearch.plugin.flavor;
 
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
+
 import org.apache.mahout.cf.taste.common.TasteException;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.recommender.UserBasedRecommender;
@@ -18,8 +21,11 @@ import org.apache.mahout.cf.taste.impl.recommender.GenericUserBasedRecommender;
 import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
 
 public class RecommenderBuilder {
-    private String similarityName;
-    private String neighborhoodName;
+    private ESLogger logger = Loggers.getLogger(FlavorRestAction.class);
+    private String similarityName   = "PearsonCorrelationSimilarity";
+    private String neighborhoodName = "NearestNUserNeighborhood";
+    private int neighborhoodNearestN = 10;
+    private double neighborhoodThreshold = 0.1;
     private DataModel dataModel;
 
     public static RecommenderBuilder builder() {
@@ -41,37 +47,49 @@ public class RecommenderBuilder {
         return this;
     }
 
+    public RecommenderBuilder neighborhoodNearestN(final int n) {
+        this.neighborhoodNearestN = n;
+        return this;
+    }
+
+    public RecommenderBuilder neighborhoodThreshold(final double threshold) {
+        this.neighborhoodThreshold = threshold;
+        return this;
+    }
+
     public UserBasedRecommender userBasedRecommender() throws TasteException {
         UserSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
-        if (similarityName != null) {
-            if (similarityName.equals("PearsonCorrelationSimilarity")) {
-                similarity = new PearsonCorrelationSimilarity(dataModel);
+        if (similarityName == null || similarityName.isEmpty()) {
+            this.similarityName = "PearsonCorrelationSimilarity";
+        }
 
-            } else if (similarityName.equals("EuclideanDistanceSimilarity")) {
-                similarity = new EuclideanDistanceSimilarity(dataModel);
+        if (similarityName.equals("PearsonCorrelationSimilarity")) {
+            similarity = new PearsonCorrelationSimilarity(dataModel);
 
-            } else if (similarityName.equals("TanimotoCoefficientSimilarity")) {
-                similarity = new TanimotoCoefficientSimilarity(dataModel);
-
-            } else if (similarityName.equals("LogLikelihoodSimilarity")) {
-                similarity = new LogLikelihoodSimilarity(dataModel);
-
-            } else {
-                throw new TasteException("UserSimilarity algorithm has not been supported: " + similarityName);
-            }
+        } else if (similarityName.equals("EuclideanDistanceSimilarity")) {
+            similarity = new EuclideanDistanceSimilarity(dataModel);
+            
+        } else {
+            throw new TasteException("UserSimilarity algorithm has not been supported: " + similarityName);
         }
             
         UserNeighborhood neighborhood = new NearestNUserNeighborhood(10, similarity, dataModel);
-        if (neighborhoodName != null) {
-            if (neighborhood.equals("NearestNUserNeighborhood")) {
-                neighborhood = new NearestNUserNeighborhood(10, similarity, dataModel);
+        if (neighborhoodName == null || neighborhoodName.isEmpty()) {
+            this.neighborhoodName = "NearestNUserNeighborhood";
+        }
 
-            } else if (neighborhoodName.equals("ThresholdUserNeighborhood")) {
-                neighborhood = new ThresholdUserNeighborhood(0.1, similarity, dataModel);
-
-            } else {
-                throw new TasteException("UserNeighborhood algorithm has not been supported: " + neighborhoodName);
-            }
+        if (neighborhoodName.equals("NearestNUserNeighborhood")) {
+            neighborhood = new NearestNUserNeighborhood(neighborhoodNearestN,
+                                                        similarity,
+                                                        dataModel);
+            
+        } else if (neighborhoodName.equals("ThresholdUserNeighborhood")) {
+            neighborhood = new ThresholdUserNeighborhood(neighborhoodThreshold,
+                                                         similarity,
+                                                         dataModel);
+            
+        } else {
+            throw new TasteException("UserNeighborhood algorithm has not been supported: " + neighborhoodName);
         }
 
         similarity.setPreferenceInferrer(new AveragingPreferenceInferrer(dataModel));
@@ -80,22 +98,24 @@ public class RecommenderBuilder {
 
     public ItemBasedRecommender itemBasedRecommender() throws TasteException {
         ItemSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
-        if (similarityName != null) {
-            if (similarityName.equals("PearsonCorrelationSimilarity")) {
-                similarity = new PearsonCorrelationSimilarity(dataModel);
+        if (similarityName == null || similarityName.isEmpty()) {
+            this.similarityName = "PearsonCorrelationSimilarity";
+        }
 
-            } else if (similarityName.equals("EuclideanDistanceSimilarity")) {
-                similarity = new EuclideanDistanceSimilarity(dataModel);
-
-            } else if (similarityName.equals("LogLikelihoodSimilarity")) {
-                similarity = new LogLikelihoodSimilarity(dataModel);
-
-            } else if (similarityName.equals("TanimotoCoefficientSimilarity")) {
-                similarity = new TanimotoCoefficientSimilarity(dataModel);
-
-            } else {
-                throw new TasteException("ItemSimilarity algorithm not support: " + similarityName);
-            }
+        if (similarityName.equals("PearsonCorrelationSimilarity")) {
+            similarity = new PearsonCorrelationSimilarity(dataModel);
+            
+        } else if (similarityName.equals("EuclideanDistanceSimilarity")) {
+            similarity = new EuclideanDistanceSimilarity(dataModel);
+            
+        } else if (similarityName.equals("LogLikelihoodSimilarity")) {
+            similarity = new LogLikelihoodSimilarity(dataModel);
+            
+        } else if (similarityName.equals("TanimotoCoefficientSimilarity")) {
+            similarity = new TanimotoCoefficientSimilarity(dataModel);
+            
+        } else {
+            throw new TasteException("ItemSimilarity algorithm not support: " + similarityName);
         }
         return new GenericItemBasedRecommender(dataModel, similarity);
     }
