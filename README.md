@@ -7,7 +7,7 @@ Use elasticsearch to storage and REST interface.
 
 | Flavor | Elasticsearch |
 |:-------|:-------------|
-| 0.0.2  | 1.5.0        |
+| 0.0.3  | 1.5.0        |
 
 ## Installation
 
