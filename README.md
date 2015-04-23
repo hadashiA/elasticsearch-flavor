@@ -53,7 +53,7 @@ curl -XPOST localhost:9200/my_index -d '{
 ### Similar Items
 
 ```
-GET /_flavor/{index}/{type}/similar_items/{item_id}
+GET /{index}/{type}/_flavor/{index}/{type}/similar_items/{item_id}
 ```
 
 Query Parameters
@@ -98,7 +98,7 @@ Content-Type: application/json; charset=UTF-8
 ### Similar Users
 
 ```
-GET /_flavor/similar_users/{user_id}
+GET /{index}/{type}/_flavor/similar_users/{user_id}
 ```
 
 Query Parameters
@@ -108,13 +108,16 @@ Query Parameters
 | index      | String      | Index name that there is preference.  |
 | type       | String      | Document Type name of the preference.  |
 | size       | int         | Number of recommend items     |
-| similarity | String      | UserSimilarity algorithm name.<br>Defaualt value is `PearsonCorrelationSimilarity`. Other values: `EuclideanDistanceSimilarity`<br>`LogLikelihoodSimilarity`<br>`TanimotoCoefficientSimilarity` |
+| similarity | String      | UserSimilarity algorithm name.<br>Defaualt value is `PearsonCorrelationSimilarity`. Other values: `EuclideanDistanceSimilarity` |
+| neighborhood | String      | UserNeighborhood algorithm name.<br>Defaualt value is `NearestNUserNeighborhood`. Other values: `ThresholdUserNeighborhood` |
+| neighborhoodN | int      | neighborhood size. capped at the number of users in the data. Allow if using `NearestNUserNeighborhood`. |
+| neighborhoodThreshold | float | User similarity threshold. Allow if using `ThresholdUderNeighborhood`. |
 
 
 Curl Example
 
 ```bash
-$ http get 'localhost:9200/_flavor/similar_users/9?size=3'
+$ curl 'localhost:9200/my_index/preference/_flavor/similar_users/9?size=3'
 HTTP/1.1 200 OK
 Content-Length: 86
 Content-Type: application/json; charset=UTF-8
@@ -135,6 +138,60 @@ Content-Type: application/json; charset=UTF-8
         "total": 3
     },
     "took": 55
+}
+```
+
+### Recommend
+
+```
+GET /{index}/{type}/_flavor/user_based_recommend/{user_id}
+```
+
+Or
+
+```
+GET /{index}/{type}/_flavor/item_based_recommend/{user_id}
+```
+
+Query Parameters
+
+| Name       | Type        | Description                   |
+|:-----------|:------------|:------------------------------|
+| index      | String      | Index name that there is preference.  |
+| type       | String      | Document Type name of the preference.  |
+| size       | int         | Number of recommend items     |
+| similarity | String      | UserSimilarity algorithm name.<br>Defaualt value is `PearsonCorrelationSimilarity`. Other values: `EuclideanDistanceSimilarity` |
+| neighborhood | String      | UserNeighborhood algorithm name.<br>Defaualt value is `NearestNUserNeighborhood`. Other values: `ThresholdUserNeighborhood` |
+| neighborhoodN | int      | neighborhood size. capped at the number of users in the data. Allow if using `NearestNUserNeighborhood`. |
+| neighborhoodThreshold | float | User similarity threshold. Allow if using `ThresholdUderNeighborhood`. |
+
+
+Curl Example
+
+```bash
+$ curl 'localhost:9200/my_index/preference/_flavor/user_based_recommend/9?size=3'
+HTTP/1.1 200 OK
+Content-Length: 86
+Content-Type: application/json; charset=UTF-8
+{
+    "hits": {
+        "hits": [
+            {
+                "item_id": 58506,
+                "value": 2.5583827
+            },
+            {
+                "item_id": 222964,
+                "value": 2.460672
+            },
+            {
+                "item_id": 7015,
+                "value": 2.4304452
+            }
+        ],
+        "total": 3
+    },
+    "took": 947
 }
 ```
 
