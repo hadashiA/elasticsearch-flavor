@@ -1,33 +1,18 @@
 package org.elasticsearch.plugin.flavor;
 
-import java.io.IOException;
 import java.util.logging.Logger;
 
 import org.junit.Before;
 import org.junit.After;
 import org.junit.Test;
 
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.ImmutableSettings.Builder;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.env.FailedToResolveConfigException;
-import org.elasticsearch.plugins.PluginsService;
+import org.elasticsearch.common.settings.Settings.Builder;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 
 import org.apache.mahout.cf.taste.model.DataModel;
-import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
-import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
 
-import org.elasticsearch.plugin.flavor.DataModelFactory;
-import org.elasticsearch.plugin.flavor.ElasticsearchDynamicDataModelFactory;
 
 import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newConfigs;
 import static org.junit.Assert.*;
@@ -35,20 +20,21 @@ import static org.junit.Assert.*;
 public class ElasticsearchDynamicDataModelFactoryTest {
     private final static Logger LOGGER = Logger.getLogger(ElasticsearchDynamicDataModelFactory.class.getName());
     
-    private ElasticsearchClusterRunner runner = new ElasticsearchClusterRunner();
+    private ElasticsearchClusterRunner runner;
     private ElasticsearchDynamicDataModelFactory factory;
     private String index = "myindex";
-    private String type  = "preference";
+    private String type  = "item";
 
     @Before
     public void setUp() throws Exception {
+        runner = new ElasticsearchClusterRunner();
         runner.onBuild(new ElasticsearchClusterRunner.Builder() {
             @Override
             public void build(final int number, final Builder settingsBuilder) {
                 settingsBuilder.put("http.cors.enabled", true);
                 settingsBuilder.put("index.number_of_replicas", 0);
             }
-        }).build(newConfigs().ramIndexStore().numOfNode(1));
+        }).build(newConfigs().numOfNode(1));
 
         runner.ensureYellow();
 
