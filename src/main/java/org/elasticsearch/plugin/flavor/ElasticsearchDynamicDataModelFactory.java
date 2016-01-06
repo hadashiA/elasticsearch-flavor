@@ -1,6 +1,5 @@
 package org.elasticsearch.plugin.flavor;
 
-import java.util.HashSet;
 
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.unit.TimeValue;
@@ -8,29 +7,17 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHitField;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.sort.SortBuilders;
-import org.elasticsearch.search.sort.SortOrder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.FilterBuilders;
-import org.elasticsearch.index.query.TermsFilterBuilder;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.index.query.QueryBuilders;
 
-import org.apache.mahout.cf.taste.common.Refreshable;
 import org.apache.mahout.cf.taste.common.TasteException;
 import org.apache.mahout.cf.taste.common.NoSuchItemException;
-import org.apache.mahout.cf.taste.impl.model.AbstractDataModel;
-import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.cf.taste.impl.common.FastByIDMap;
 import org.apache.mahout.cf.taste.impl.common.FastIDSet;
-import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
-import org.apache.mahout.cf.taste.impl.model.AbstractDataModel;
 import org.apache.mahout.cf.taste.impl.model.GenericDataModel;
-import org.apache.mahout.cf.taste.impl.model.GenericPreference;
 import org.apache.mahout.cf.taste.impl.model.GenericUserPreferenceArray;
 import org.apache.mahout.cf.taste.model.DataModel;
-import org.apache.mahout.cf.taste.model.Preference;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
 
 import org.elasticsearch.plugin.flavor.DataModelFactory;
@@ -54,7 +41,7 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
             .setTypes(type)
             .setSearchType(SearchType.SCAN)
             .setScroll(new TimeValue(keepAlive))
-            .setPostFilter(FilterBuilders.termFilter("item_id", itemId))
+            .setPostFilter(QueryBuilders.termQuery("item_id", itemId))
             .addFields("user_id")
             .setSize(scrollSize)
             .execute()
@@ -88,7 +75,7 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
             .setTypes(type)
             .setSearchType(SearchType.SCAN)
             .setScroll(new TimeValue(keepAlive))
-            .setPostFilter(FilterBuilders.termFilter("user_id", targetUserId))
+            .setPostFilter(QueryBuilders.termQuery("user_id", targetUserId))
             .addFields("item_id")
             .setSize(scrollSize)
             .execute()
@@ -120,7 +107,7 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
             .setTypes(type)
             .setSearchType(SearchType.SCAN)
             .setScroll(new TimeValue(keepAlive))
-            .setPostFilter(FilterBuilders.termsFilter("item_id", itemIds))
+            .setPostFilter(QueryBuilders.termsQuery("item_id", (long[])itemIds.toArray()))
             .addFields("user_id")
             .setSize(scrollSize)
             .execute()
@@ -153,7 +140,7 @@ public class ElasticsearchDynamicDataModelFactory implements DataModelFactory {
             .prepareSearch(index)
             .setTypes(type)
             .setSearchType(SearchType.SCAN)
-            .setPostFilter(FilterBuilders.termsFilter("user_id", userIds))
+            .setPostFilter(QueryBuilders.termsQuery("user_id", (long[])userIds.toArray()))
             .addFields("user_id", "item_id", "value")
             .setSize(scrollSize)
             .setScroll(new TimeValue(keepAlive))
